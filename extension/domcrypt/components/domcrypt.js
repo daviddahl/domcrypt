@@ -42,9 +42,6 @@ const Cu = Components.utils;
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 
-let promptService = Cc["@mozilla.org/embedcomp/prompt-service;1"]
-                      .getService(Ci.nsIPromptService);
-
 function LogFactory(aMessagePrefix)
 {
   function log(aMessage) {
@@ -56,23 +53,15 @@ function LogFactory(aMessagePrefix)
 
 var log = LogFactory("*** DOMCrypt extension:");
 
-try {
-  let alertsService = Cc["@mozilla.org/alerts-service;1"].
-                        getService(Ci.nsIAlertsService);
-  function notify(aTitle, aText)
-  {
-    alertsService.showAlertNotification(null,
-                                        aTitle,
-                                        aText,
-                                        false, "", null, "");
-  }
-} 
-catch (ex) {
-  const NOTIFY_MISSING = true;
-  function notify(aTitle, aText, aWindow) 
-  {      
-    promptService.alert(aWindow, aTitle, aText);
-  }
+var alertsService = Cc["@mozilla.org/alerts-service;1"].
+                      getService(Ci.nsIAlertsService);
+
+function notify(aTitle, aText)
+{
+  alertsService.showAlertNotification(null,
+                                      aTitle,
+                                      aText,
+                                      false, "", null, "");
 }
 
 XPCOMUtils.defineLazyGetter(this, "JSON", function() {
@@ -179,19 +168,14 @@ DOMCryptAPI.prototype = {
 
     // TODO: create an event  that can be listened for when the keyPair
     // is done being generated
-    this.notify("Key Pair Generated", "Key Pair Generated");
-  },
-
-  notify: function DAPI_notify(aTitle, aText)
-  {
-    if (NOTIFY_MISSING) {
-      notify(aTitle, aText, this.window);
+    try {
+      notify("Key Pair Generated", "");
     } 
-    else {
-      notify(aTitle, aText);
+    catch (ex) {
+      Cu.reportError("Key Pair Generated - notification could not be sent");
     }
   },
-  
+
   get setTimeout() {
     return this.window.ownerDocument.defaultView.setTimeout;
   },
