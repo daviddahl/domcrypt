@@ -42,6 +42,9 @@ const Cu = Components.utils;
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 
+let promptService = Cc["@mozilla.org/embedcomp/prompt-service;1"]
+                      .getService(Ci.nsIPromptService);
+
 function LogFactory(aMessagePrefix)
 {
   function log(aMessage) {
@@ -54,7 +57,7 @@ function LogFactory(aMessagePrefix)
 var log = LogFactory("*** DOMCrypt extension:");
 
 try {
-  var alertsService = Cc["@mozilla.org/alerts-service;1"].
+  let alertsService = Cc["@mozilla.org/alerts-service;1"].
                         getService(Ci.nsIAlertsService);
   function notify(aTitle, aText)
   {
@@ -65,7 +68,11 @@ try {
   }
 } 
 catch (ex) {
-  let notify = null;
+  const NOTIFY_MISSING = true;
+  function notify(aTitle, aText, aWindow) 
+  {      
+    promptService.alert(aWindow, aTitle, aText);
+  }
 }
 
 XPCOMUtils.defineLazyGetter(this, "JSON", function() {
@@ -172,16 +179,19 @@ DOMCryptAPI.prototype = {
 
     // TODO: create an event  that can be listened for when the keyPair
     // is done being generated
-    if (notify) {
-      notify("Key Pair Generated");
-    } else {
-      let promptService = Cc["@mozilla.org/embedcomp/prompt-service;1"]
-                            .getService(Ci.nsIPromptService);
-      
-      promptService.alert(this.window, "Key Pair Generated", "Key Pair Generated");
-    }
+    this.notify("Key Pair Generated", "Key Pair Generated");
   },
 
+  notify: function DAPI_notify(aTitle, aText)
+  {
+    if (NOTIFY_MISSING) {
+      notify(aTitle, aText, this.window);
+    } 
+    else {
+      notify(aTitle, aText);
+    }
+  },
+  
   get setTimeout() {
     return this.window.ownerDocument.defaultView.setTimeout;
   },
