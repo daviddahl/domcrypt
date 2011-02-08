@@ -19,3 +19,5 @@ window.crypt.decrypt(aMessage, aPublicKey, aCryptoObject);
 See demo.html and demo.js for actual usage. 
 
 BETTER YET, use it live: http://mozilla.ddahl.com/domcrypt/demo.html
+
+DOMCrypt is an effort to try and formulate what an easy to use DOM API for public key encryption looks like. This should be as much a part of 'HTML 5' as <audio> or <video>, etc.

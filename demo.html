@@ -13,6 +13,7 @@
        h1 { font-size: 2em; }
        h2 { font-size: 1.5em; }
        h3 { font-size: 1.1em; }
+       li { margin-top: 0.4em; }
      </style>
   </head>
   <body>
@@ -48,6 +49,15 @@
       <h3>Decrypted text</h3>
       <button onclick="decrypt();">Decrypt</button>
        <div id="decrypted"></div>
+    </div>
+    <div id="next">
+      <h2>Next steps</h2>
+      <ul>
+        <li>Data persistence via IndexedDB, localStorage, Sync, new APIs</li>
+        <li>Address Book server to make public key discovery trivial</li>
+        <li>Messaging (secure 'email' and 'status' feeds) client and server</li>
+        <li>Evangelism: get this functionality into browsers</li>
+      </ul>
     </div>
     <div class="key">Last update: 2011-02-08</div>
   </body>
