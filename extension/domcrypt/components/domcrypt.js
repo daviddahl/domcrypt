@@ -74,7 +74,9 @@ XPCOMUtils.defineLazyGetter(this, "cryptoSvc",
   return new WeaveCrypto();
 });
 
-function DOMCryptAPI(){}
+function DOMCryptAPI(){
+
+}
 
 DOMCryptAPI.prototype = {
 
@@ -88,18 +90,22 @@ DOMCryptAPI.prototype = {
     log("cryptoSvc: " + cryptoSvc);
 
     let self = this;
-
+    
     this.window = aWindow;
+    this.salt = cryptoSvc.generateRandomBytes(16);
+    this.iv = cryptoSvc.generateRandomIV();
 
     return {
       encrypt: self.encrypt,
       decrypt: self.decrypt,
       generateKeyPair: self.generateKeyPair,
       pubKey: self.pubKey,
-      privKey: self.privKey
+      privKey: self.privKey,
+      salt: self.salt,
+      iv: self.iv        
     };
   },
-
+  
   encrypt: function DAPI_encrypt(aMsg, aPubKey) {
     if (!aMsg && !aPubKey) {
       throw new Error("Missing Arguments: aMessage and aPublicKey are Required");
@@ -147,43 +153,22 @@ DOMCryptAPI.prototype = {
 
   privKey: null,
 
+  orig_iv: null,
+  
+  orig_salt: null,
+  
   generateKeyPair: function DAPI_generateKeyPair(passphrase)
   {
-    var salt = cryptoSvc.generateRandomBytes(16);
-    var iv = cryptoSvc.generateRandomIV();
-    this.orig_iv = iv;
-    this.orig_salt = salt;
     var pubOut = {};
     var privOut = {};
-    cryptoSvc.generateKeypair(passphrase, salt, iv,
+    cryptoSvc.generateKeypair(passphrase, this.salt, this.iv,
                               pubOut, privOut);
     this.pubKey = pubOut.value;
     this.privKey = privOut.value;
+
     // TODO: create an event  that can be listened for when the keyPair
     // is done being generated
     notify("KeyPair generated");
-  },
-
-  getKeyPair: function DAPI_getKeyPair()
-  {
-    if (!this.pubKey && !this.privKey) {
-      Services.console.logStringMessage("window.crypt: KeyPair is not generated yet");
-      return null;
-    }
-    else {
-      var self = this;
-      var pair = {
-        privKey: new String(self.privKey),
-        pubKey: new String(self.pubKey),
-        aSalt: this.orig_salt,
-        aIV: this.orig_iv
-      };
-      this.privKey = null;
-      this.pubKey = null;
-      this.orig_iv = null;
-      this.orig_salt = null;
-      return pair;
-    }
   },
 
   get setTimeout() {
