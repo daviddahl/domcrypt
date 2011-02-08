@@ -110,11 +110,11 @@ DOMCryptAPI.prototype = {
     if (!aMsg && !aPubKey) {
       throw new Error("Missing Arguments: aMessage and aPublicKey are Required");
     }
-    var randomSymKey = this.randomSymKey(aPubKey);
+    var randomSymKey = cryptoSvc.generateRandomKey(); //this.randomSymKey(aPubKey);
     var aIV = cryptoSvc.generateRandomIV();
     var cryptoMessage = cryptoSvc.encrypt(aMsg, randomSymKey, aIV);
     var wrappedKey = cryptoSvc.wrapSymmetricKey(randomSymKey, aPubKey);
-    return { message: cryptoMessage, symKey: randomSymKey, pubKey: aPubKey, wrappedKey: wrappedKey };
+    return { content: cryptoMessage, symKey: randomSymKey, pubKey: aPubKey, wrapped_key: wrappedKey, iv: aIV };
   },
 
   decrypt: function DAPI_decrypt(aMsg, aPubKey, aCryptoObj) {
