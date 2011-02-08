@@ -17,6 +17,14 @@
   </head>
   <body>
     <h1>DOMCrypt Demo</h1>
+    <div id="explanation">DOMCrypt is a Firefox extension that adds 'window.crypt' to each browser window. With 'crypt', you can generate a public and private key pair, encrypt data and decrypt data. All of the encryption operations are handled by low-level NSS libraries written in C. This is not a javascript-in-content solution. (NSS handles all of the SSL operations in many modern browsers.)
+      <div>See <a href="https://github.com/daviddahl/domcrypt">https://github.com/daviddahl/domcrypt</a> for source code</div>
+      <h2>Try out the demo:</h2>
+      <ul>
+        <li><a href="extension/built/domcrypt.xpi">Install the extension</a> and restart your browser.</li>
+        <li>Load this page and follow the next 3 steps:</li>
+      </ul>
+    </div>
     <div id="generate">
       <h2>1. Generate the key pair</h2>
       <div>
@@ -29,18 +37,17 @@
     </div>
 
     <div id="encrypt">
-      <h2>2. Encrypt a message</h2>
+      <h2>2. Encrypt the message</h2>
       <textarea id="plaintext" rows="3" cols="50">This is a plaintext message.</textarea> <button onclick="encrypt();">Encrypt</button>
       <h3>Encrypted text</h3>
       <div id="encrypted">...</div>
     </div>
     
     <div id="decrypt">
-      <h2>3. Decrypt a cipher text</h2>
+      <h2>3. Decrypt the cipher text</h2>
       <h3>Decrypted text</h3>
       <button onclick="decrypt();">Decrypt</button>
        <div id="decrypted"></div>
     </div>
-
   </body>
 </html>
