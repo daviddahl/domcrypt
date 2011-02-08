@@ -53,15 +53,19 @@ function LogFactory(aMessagePrefix)
 
 var log = LogFactory("*** DOMCrypt extension:");
 
-var alertsService = Cc["@mozilla.org/alerts-service;1"].
-                      getService(Ci.nsIAlertsService);
-
-function notify(aTitle, aText)
-{
-  alertsService.showAlertNotification(null,
-                                      aTitle,
-                                      aText,
-                                      false, "", null, "");
+try {
+  var alertsService = Cc["@mozilla.org/alerts-service;1"].
+                        getService(Ci.nsIAlertsService);
+  function notify(aTitle, aText)
+  {
+    alertsService.showAlertNotification(null,
+                                        aTitle,
+                                        aText,
+                                        false, "", null, "");
+  }
+} 
+catch (ex) {
+  let notify = null;
 }
 
 XPCOMUtils.defineLazyGetter(this, "JSON", function() {
@@ -168,7 +172,14 @@ DOMCryptAPI.prototype = {
 
     // TODO: create an event  that can be listened for when the keyPair
     // is done being generated
-    notify("KeyPair generated");
+    if (notify) {
+      notify("Key Pair Generated");
+    } else {
+      let promptService = Cc["@mozilla.org/embedcomp/prompt-service;1"]
+                            .getService(Ci.nsIPromptService);
+      
+      promptService.alert(this.window, "Key Pair Generated", "Key Pair Generated");
+    }
   },
 
   get setTimeout() {
