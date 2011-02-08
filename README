@@ -1,0 +1,14 @@
+DOMCrypt
+
+DOMCrypt is a Firefox extension that adds 'window.crypt' javascript object to any webpage.
+
+All of the underlying encryption is handled by NSS, so it is fast native code
+
+window.crypt exposes a Public Key Crypto API to content:
+
+window.crypt.generateKeyPair("aPassphrase");
+
+window.crypt.encrypt(aMessage, aPublicKey);
+
+window.crypt.decrypt(aMessage, aPublicKey, aCryptoObject);
+  (aCryptoObj is an object literal with the properties: privKey, passphrase, aSalt, aIV)
