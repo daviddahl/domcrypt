@@ -53,8 +53,20 @@ function LogFactory(aMessagePrefix)
 
 var log = LogFactory("*** DOMCrypt extension:");
 
-var alertsService = Cc["@mozilla.org/alerts-service;1"].
-                      getService(Ci.nsIAlertsService);
+try {
+  let alertsService = Cc["@mozilla.org/alerts-service;1"].
+                        getService(Ci.nsIAlertsService);  
+} 
+catch (ex) {
+  Cu.reportError("AlertsService not available");
+  let alertsService = {
+    showAlertNotification: function AS_showAlertNotification(aNull, aTitle, aText)
+    {
+      // noop
+      Services.console.logStringMessage("*** DOMCrypt: " + aTitle + " " + aText);
+    }
+  };
+}
 
 function notify(aTitle, aText)
 {
