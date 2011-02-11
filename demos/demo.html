@@ -31,12 +31,10 @@
     <div id="generate">
       <h2>1. Generate the key pair</h2>
       <div>
-        <input id="passphrase" value="a passphrase!"/> <button onclick="generate();">Generate Key Pair</button>
+        <button onclick="generate();">Generate Key Pair</button>
       </div>
       <h3>Public key</h3>
       <div class="key" id="pubKey">...</div>
-      <h3>Private key</h3>
-      <div class="key" id="privKey">...</div>
     </div>
 
     <div id="encrypt">
@@ -52,15 +50,22 @@
       <button onclick="decrypt();">Decrypt</button>
        <div id="decrypted"></div>
     </div>
+    <div>
+      <h2>Latest Developments</h2>
+      <ul>
+        <li>JSON data persistence for a user's default encryption credentials - not accessible to the DOM or content JS (only the Public Key is, of course.)</li>
+      </ul>
+    </div>
+
     <div id="next">
       <h2>Next steps</h2>
       <ul>
-        <li>Data persistence via IndexedDB, localStorage, Sync, new APIs</li>
+        <li>Data persistence via IndexedDB, JSON,  localStorage, Sync, new APIs</li>
         <li>Address Book server to make public key discovery trivial</li>
         <li>Messaging (secure 'email' and 'status' feeds) client and server</li>
         <li>Evangelism: get this functionality into browsers</li>
       </ul>
     </div>
-    <div class="key">Last update: 2011-02-08</div>
+    <div class="key">Last update: 2011-02-11</div>
   </body>
 </html>
