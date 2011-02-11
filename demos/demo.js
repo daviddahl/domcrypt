@@ -19,10 +19,9 @@ function getPubKey()
 
 function generate()
 {
-  var passphrase = document.getElementById("passphrase").value;
   window.crypt.generateKeyPair();
   window.setTimeout(function(){ 
-    document.getElementById("pubKey").innerHTML = window.crypt.pubKey;
+    document.getElementById("pubKey").innerHTML = window.crypt.getPubKey();
     }
     , 2000);
 }
