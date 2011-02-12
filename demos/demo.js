@@ -1,9 +1,7 @@
 // DOMCrypt demo script
-// This demo does not implement any kind of persistent storage, as 
-// references made to window.crypt.pubKey etc are fleeting and should, in practice, 
-// be kept in a database of some kind.
 
 window.addEventListener("load", function (){
+  // if the user already has a key pair - fetch the public key to display on this page
   try {
     document.getElementById("pubKey").innerHTML = window.crypt.getPubKey();
   } 
@@ -19,6 +17,7 @@ function getPubKey()
 
 function generate()
 {
+  // begins the key pair generation routine, user is prompted by chrome-privileged passphrase prompt
   window.crypt.generateKeyPair();
   window.setTimeout(function(){ 
     document.getElementById("pubKey").innerHTML = window.crypt.getPubKey();
@@ -28,6 +27,7 @@ function generate()
 
 function encrypt()
 {
+  // encrypts the message with the current user's public key - this demo is quite simplistic in that there is only one user
   var msg = document.getElementById("plaintext").value;
   
   document.currentMessage = window.crypt.encrypt(msg);
@@ -36,6 +36,7 @@ function encrypt()
 
 function decrypt()
 {
+  // decrypt -  user is prompted by chrome-privileged prompt to collect the passphrase, which is garbage collected right away
   var decrypted = 
     window.crypt.promptDecrypt(document.currentMessage);
   document.getElementById("decrypted").innerHTML = decrypted;

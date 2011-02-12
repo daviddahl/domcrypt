@@ -110,7 +110,6 @@ let BLANK_CONFIG_OBJECT = {
 
 let BLANK_CONFIG_OBJECT_STR = "{'default': {'hashedPassphrase': null,'created': null,'privKey': null,'pubKey': null,'salt': null,'iv': null}};";
 
-
 function DOMCryptAPI(){
 
 }
@@ -123,14 +122,8 @@ DOMCryptAPI.prototype = {
 
   init: function DC_init(aWindow)
   {
-    log("*** Starting DOMCrypt... ");
-    log("cryptoSvc: " + cryptoSvc);
-
     let self = this;
     this.getConfigObj();
-    for (let prop in this.config.default) {
-      log(prop + ": " + this.config.default[prop]);
-    }
     this.window = aWindow;
     this.salt = cryptoSvc.generateRandomBytes(16);
     this.iv = cryptoSvc.generateRandomIV();
@@ -190,6 +183,11 @@ DOMCryptAPI.prototype = {
 
     var decryptedMsg = cryptoSvc.decrypt(aMsg.content, unwrappedKey, aMsg.iv);
 
+    // get rid of the passphrase ASAP
+    delete aPassphrase;
+    // force garbage collection
+    Cu.forceGC();
+    
     return decryptedMsg;
   },
 
@@ -230,7 +228,6 @@ DOMCryptAPI.prototype = {
   
   writeConfigurationToDisk: function DAPI_writeConfigurationToDisk(aConfigObj)
   {
-    log("aConfigObj: " + aConfigObj);
     if (!aConfigObj) {
       throw new Error("aConfigObj is null");
     }
@@ -278,19 +275,14 @@ DOMCryptAPI.prototype = {
     try {
       // get file, convert to JSON
       let file = this.configurationFile();
-      log(file);
       try {
         var str = this.getFileAsString(file);
-        log("GET FILE AS STRING..........................................");
-        log(str);
       } 
       catch (ex) {
-        log("I THREW?????  " + ex);
         newConfig = true;
         var str = BLANK_CONFIG_OBJECT_STR;
       }
       let json = JSON.parse(str);
-      log("json: " + json);
       this.config = json;
       this.pubKey = this.config.default.pubKey;
       if (newConfig) {
