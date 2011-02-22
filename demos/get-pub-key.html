@@ -1,0 +1,42 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+  <head>
+    <meta
+       name="addressbook-entry-old" content='\'{"pubKey":"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1vW1laRyBkIfdeB2GQT+rz4dRwYUMtQJQ4Z8/QJCQj5qFuYKqcUn+8UssedWMjygRME1Eamcv5X5HLvphYMaRufk4PvKXLNq0Xh7cmNLcpQT639v+RjWpvHNWsdtYfd80nKCf1S46TlbH2/aw/+tcdLdj8MOTDtzII2oCcXU8B8PXNf49rcNMv8KagjC6LMQDrgvmZ56T1J3wHtQAH/QXGvh4WjQc2sWC/V+2xGkQL4+4yeP7STJBQXKmmqanExsqmwii1rV0Rd2GQnJRaSj+56HMDbZkLnZsxJExul5vu6ec+nBfACxWDMVCeVWbYxBpfURgC5nDsznkgT5VhXOJwIDAQAB","handle":"natasha","domain":"droplettr.com"}\''></meta>
+
+    <meta
+       name="addressbook-entry" pubkey="MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1vW1laRyBkIfdeB2GQT+rz4dRwYUMtQJQ4Z8/QJCQj5qFuYKqcUn+8UssedWMjygRME1Eamcv5X5HLvphYMaRufk4PvKXLNq0Xh7cmNLcpQT639v+RjWpvHNWsdtYfd80nKCf1S46TlbH2/aw/+tcdLdj8MOTDtzII2oCcXU8B8PXNf49rcNMv8KagjC6LMQDrgvmZ56T1J3wHtQAH/QXGvh4WjQc2sWC/V+2xGkQL4+4yeP7STJBQXKmmqanExsqmwii1rV0Rd2GQnJRaSj+56HMDbZkLnZsxJExul5vu6ec+nBfACxWDMVCeVWbYxBpfURgC5nDsznkgT5VhXOJwIDAQAB"
+       handle="natasha"
+       domain="droplettr.com"
+       date="1298322911889"></meta>
+
+     <!-- <script src="get-pub-key.js" type="text/javascript"></script> -->
+     <style>
+       body { font-family: sans-serif; font-size: 1em; }
+       .key { font-family: monospace; font-size: 0.8em; color: green; }
+       #decrypted { color: blue; }
+       #encrypted { color: red; }
+       div { margin: 0.3em; padding: 0.2em; }
+       h1 { font-size: 2em; }
+       h2 { font-size: 1.5em; }
+       h3 { font-size: 1.1em; }
+       li { margin-top: 0.4em; }
+       .bold { font-weight: bold; }
+     </style>
+  </head>
+  <body>
+    <h1>DOMCrypt Demo 2: Add a 'Contact' to an 'Addressbook'</h1>
+    <div id="explanation">
+      A 'contact' is the Public Key and associated data of one of the people you communicate with. This data is wrapped in a JSON object and 'published' on a web page inside of a meta tag, e.g: <pre>&lt;meta
+  name="addressbook-entry" 
+  content="{ pubKey: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1vW1laRyBkIfdeB2GQT+rz4dRwYUMtQJQ4Z8/QJCQj5qFuYKqcUn+8UssedWMjygRME1Eamcv5X5HLvphYMaRufk4PvKXLNq0Xh7cmNLcpQT639v+RjWpvHNWsdtYfd80nKCf1S46TlbH2/aw/+tcdLdj8MOTDtzII2oCcXU8B8PXNf49rcNMv8KagjC6LMQDrgvmZ56T1J3wHtQAH/QXGvh4WjQc2sWC/V+2xGkQL4+4yeP7STJBQXKmmqanExsqmwii1rV0Rd2GQnJRaSj+56HMDbZkLnZsxJExul5vu6ec+nBfACxWDMVCeVWbYxBpfURgC5nDsznkgT5VhXOJwIDAQAB',
+             handle: 'natasha',
+             domain: 'droplettr.com' }"/&gt;</pre>  
+    </div>
+    <div>
+      <h2>DOMCrypt will detect this addressbook-entry tag</h2>
+      The user is asked if the entry should be saved in the addressbook database
+    </div>
+  </body>
+</html>
