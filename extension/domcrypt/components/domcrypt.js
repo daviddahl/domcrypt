@@ -52,19 +52,20 @@ function LogFactory(aMessagePrefix)
 }
 
 var log = LogFactory("*** DOMCrypt extension:");
+var alertsService;
 
-let alertsService = Cc["@mozilla.org/alerts-service;1"].
-                      getService(Ci.nsIAlertsService);
+alertsService = Cc["@mozilla.org/alerts-service;1"].
+                  getService(Ci.nsIAlertsService);
 
 if (typeof alertsService.showAlertNotification == undefined) {
   // This is a Mac without growl/ Linux without libnotify, etc...
-  let alertsService = {
-    showAlertNotification: 
+   alertsService = {
+    showAlertNotification:
     function AS_showAlertNotification(aNull, aTitle, aText)
     {
       Services.console.logStringMessage("*** DOMCrypt: " + aTitle + " " + aText);
     }
-  };  
+  };
 }
 
 function notify(aTitle, aText)
@@ -81,18 +82,24 @@ XPCOMUtils.defineLazyGetter(this, "cryptoSvc",
   return new WeaveCrypto();
 });
 
+XPCOMUtils.defineLazyGetter(this, "Addressbook",
+  function (){
+    Cu.import("resource://domcrypt/addressbookManager.js");
+    return addressbook;
+});
+
 XPCOMUtils.defineLazyGetter(this, "promptSvc", function() {
   return Cc["@mozilla.org/embedcomp/prompt-service;1"].getService(Ci.nsIPromptService);
 });
 
 const PROMPT_TITLE_GENERATE = "Enter a passphrase";
-const PROMPT_TEXT_GENERATE = 
+const PROMPT_TEXT_GENERATE =
   "Enter a passphrase that will be used to keep your messages secure";
 const PROMPT_TITLE_GENERATE_CONFIRM = "Confirm the passphrase";
-const PROMPT_TEXT_GENERATE_CONFIRM = 
+const PROMPT_TEXT_GENERATE_CONFIRM =
   "Confirm you know the passphrase you just entered";
 const PROMPT_TITLE_PASSPHRASE_NOT_CONFIRMED = "Passphrases do not match";
-const PROMPT_TEXT_PASSPHRASE_NOT_CONFIRMED = 
+const PROMPT_TEXT_PASSPHRASE_NOT_CONFIRMED =
   "Error: The passphrase and confirmation do not match";
 const PROMPT_TITLE_DECRYPT = "Enter Passphrase";
 const PROMPT_TEXT_DECRYPT = "Enter Passphrase";
@@ -123,23 +130,31 @@ DOMCryptAPI.prototype = {
   init: function DC_init(aWindow)
   {
     let self = this;
+    this.pubKey = null;
     this.getConfigObj();
-    this.window = aWindow;
+    this.window = XPCNativeWrapper.unwrap(aWindow);
     this.salt = cryptoSvc.generateRandomBytes(16);
     this.iv = cryptoSvc.generateRandomIV();
-    
+
     let obj = {
       encrypt: self.encrypt.bind(self),
       decrypt: self.decrypt.bind(self),
       promptDecrypt: self.promptDecrypt.bind(self),
       generateKeyPair: self.beginGenerateKeyPair.bind(self),
-      getPubKey: self.getPubKey.bind(self)
+      getPubKey: self.getPubKey.bind(self),
+      getAddressbook: self.getAddressbook.bind(self)
     };
-    
+
     return obj;
   },
-  
-  encrypt: function DAPI_encrypt(aMsg, aPubKey) 
+
+  getAddressbook: function DAPI_getAddressbook()
+  {
+    // TODO: whitelist urls before giving access to the addressbook
+    return Addressbook.getContactsObj();
+  },
+
+  encrypt: function DAPI_encrypt(aMsg, aPubKey)
   {
     if (!aPubKey) {
       // we do not need a public key arg if we are encrypting our own data
@@ -169,7 +184,7 @@ DOMCryptAPI.prototype = {
     if (!this.config.default.privKey) {
       throw new Error("Your encryption credentials are missing. (No privKey found)");
     }
-    
+
     var verify = cryptoSvc.verifyPassphrase(this.config.default.privKey,
                                             aPassphrase,
                                             this.config.default.salt,
@@ -187,7 +202,7 @@ DOMCryptAPI.prototype = {
     delete aPassphrase;
     // force garbage collection
     Cu.forceGC();
-    
+
     return decryptedMsg;
   },
 
@@ -195,9 +210,9 @@ DOMCryptAPI.prototype = {
   {
     // prompt for passphrase in a chrome context before decrypting message
     let passphrase = {};
-    let prompt = promptSvc.promptPassword(this.window, 
-                                          PROMPT_TITLE_DECRYPT, 
-                                          PROMPT_TEXT_DECRYPT, 
+    let prompt = promptSvc.promptPassword(this.window,
+                                          PROMPT_TITLE_DECRYPT,
+                                          PROMPT_TEXT_DECRYPT,
                                           passphrase, null, {value: false});
     if (passphrase.value) {
       return this.decrypt(aMsg, passphrase.value);
@@ -205,14 +220,12 @@ DOMCryptAPI.prototype = {
     // Otherwise we should throw?
     throw new Error("No passphrase entered.");
   },
-  
-  get pubKey(){ return this.config.default.pubKey; },
-  
-  getPubKey: function DAPI_getPubKey() 
+
+  getPubKey: function DAPI_getPubKey()
   {
     return this.config.default.pubKey;
   },
-  
+
   configurationFile: function DAPI_configFile() {
     // get profile directory
     let file = Cc["@mozilla.org/file/directory_service;1"].
@@ -225,37 +238,37 @@ DOMCryptAPI.prototype = {
     }
     return file;
   },
-  
+
   writeConfigurationToDisk: function DAPI_writeConfigurationToDisk(aConfigObj)
   {
     if (!aConfigObj) {
       throw new Error("aConfigObj is null");
     }
-    
+
     let data;
-    
+
     try {
       if (typeof aConfigObj == "object") {
         // convert aConfigObj to JSON string
         data = JSON.stringify(aConfigObj);
-      } 
+      }
       else {
         data = aConfigObj;
       }
-      
+
       let foStream = Cc["@mozilla.org/network/file-output-stream;1"].
                        createInstance(Ci.nsIFileOutputStream);
       let file = this.configurationFile();
-      
+
       // use 0x02 | 0x10 to open file for appending.
-      foStream.init(file, 0x02 | 0x08 | 0x20, 0666, 0); 
+      foStream.init(file, 0x02 | 0x08 | 0x20, 0666, 0);
 
       let converter = Cc["@mozilla.org/intl/converter-output-stream;1"].
                         createInstance(Ci.nsIConverterOutputStream);
       converter.init(foStream, "UTF-8", 0, 0);
       converter.writeString(data);
       converter.close();
-    } 
+    }
     catch (ex) {
       log(ex);
       log(ex.stack);
@@ -266,9 +279,9 @@ DOMCryptAPI.prototype = {
   {
     this.writeConfigurationToDisk(BLANK_CONFIG_OBJECT);
   },
-  
+
   config: BLANK_CONFIG_OBJECT,
-  
+
   getConfigObj: function DAPI_getConfigObj()
   {
     let newConfig = false;
@@ -277,7 +290,7 @@ DOMCryptAPI.prototype = {
       let file = this.configurationFile();
       try {
         var str = this.getFileAsString(file);
-      } 
+      }
       catch (ex) {
         newConfig = true;
         var str = BLANK_CONFIG_OBJECT_STR;
@@ -286,16 +299,16 @@ DOMCryptAPI.prototype = {
       this.config = json;
       this.pubKey = this.config.default.pubKey;
       if (newConfig) {
-        this.writeConfigurationToDisk(this.config); 
+        this.writeConfigurationToDisk(this.config);
       }
-    } 
+    }
     catch (ex) {
       log(ex);
       log(ex.stack);
     }
     return this.config;
   },
-  
+
   getFileAsString: function DAPI_getFileAsString(aFile)
   {
     if (!aFile.exists()) {
@@ -312,7 +325,7 @@ DOMCryptAPI.prototype = {
 
     let (str = {}) {
       let read = 0;
-      do { 
+      do {
         read = cstream.readString(0xffffffff, str);
         data += str.value;
       } while (read != 0);
@@ -320,32 +333,32 @@ DOMCryptAPI.prototype = {
     cstream.close();
     return data;
   },
-  
+
   beginGenerateKeyPair: function DAPI_beginGenerateKeyPair()
   {
     let passphrase = {};
-    let prompt = promptSvc.promptPassword(this.window, 
-                                          PROMPT_TITLE_GENERATE, 
-                                          PROMPT_TEXT_GENERATE, 
+    let prompt = promptSvc.promptPassword(this.window,
+                                          PROMPT_TITLE_GENERATE,
+                                          PROMPT_TEXT_GENERATE,
                                           passphrase, null, {value: false});
     if (prompt && passphrase.value) {
       let passphraseConfirm = {};
-      let prompt = promptSvc.promptPassword(this.window, 
-                                            PROMPT_TITLE_GENERATE_CONFIRM, 
-                                            PROMPT_TEXT_GENERATE_CONFIRM, 
-                                            passphraseConfirm, 
+      let prompt = promptSvc.promptPassword(this.window,
+                                            PROMPT_TITLE_GENERATE_CONFIRM,
+                                            PROMPT_TEXT_GENERATE_CONFIRM,
+                                            passphraseConfirm,
                                             null, {value: false});
-      if (prompt && passphraseConfirm.value && 
+      if (prompt && passphraseConfirm.value &&
           (passphraseConfirm.value == passphrase.value)) {
-        this.generateKeyPair(passphrase.value);        
+        this.generateKeyPair(passphrase.value);
       }
       else {
-        promptSvc.alert(this.window, PROMPT_TITLE_PASSPHRASE_NOT_CONFIRMED, 
+        promptSvc.alert(this.window, PROMPT_TITLE_PASSPHRASE_NOT_CONFIRMED,
                         PROMPT_TEXT_PASSPHRASE_NOT_CONFIRMED);
       }
     }
   },
-  
+
   generateKeyPair: function DAPI_generateKeyPair(passphrase)
   {
     var pubOut = {};
@@ -353,8 +366,8 @@ DOMCryptAPI.prototype = {
     cryptoSvc.generateKeypair(passphrase, this.salt, this.iv,
                               pubOut, privOut);
     this.pubKey = pubOut.value;
-    
-    // TODO: make a backup of the existing config if it has a timestamp 
+
+    // TODO: make a backup of the existing config if it has a timestamp
     let previousConfigStr = JSON.stringify(this.config);
 
     // set memory config data from generateKeypair
@@ -364,18 +377,18 @@ DOMCryptAPI.prototype = {
     this.config.default.hashedPassphrase = this.sha256(passphrase);
     this.config.default.iv = this.iv;
     this.config.default.salt = this.salt;
-    
+
     // make a string of the config
     let strConfig = JSON.stringify(this.config);
-    
+
     // write the new config to disk
     this.writeConfigurationToDisk(strConfig);
-    
+
     // TODO: create an event  that can be listened for when the keyPair
     // is done being generated
     try {
       notify("Key Pair Generated", "");
-    } 
+    }
     catch (ex) {
       log(ex);
       log(ex.stack);

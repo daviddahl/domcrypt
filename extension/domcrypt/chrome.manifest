@@ -1,2 +1,4 @@
 resource domcrypt content/
+content domcrypt content/
+overlay chrome://browser/content/browser.xul chrome://domcrypt/content/browser.xul
 manifest components/domcrypt.manifest

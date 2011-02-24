@@ -35,7 +35,9 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-// Cc, Ci, Cu are already defined in this scope (browser.xul)
+const Cc = Components.classes;
+const Ci = Components.interfaces;
+const Cu = Components.utils;
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
@@ -53,6 +55,8 @@ var log = LogFactory("*** DOMCrypt Addressbook:");
 
 const PROMPT_PUB_KEY_FOUND_BUTTON_LABEL = "Save Addressbook Entry";
 
+let EXPORTED_SYMBOLS = ["addressbook"];
+
 let AddressbookManager = {
 
   classID:          Components.ID("{66af630d-6d6d-4d29-9562-9f1de90c1799}"),
@@ -61,28 +65,23 @@ let AddressbookManager = {
 
   init: function AM_init()
   {
-    log("AM.init()");
     this.getContactsObj();
 
-    if (!this.contacts) {
-      this.contacts = {};
-    }
     if (this.running) {
-      return;
+      return this;
     }
 
     Services.obs.addObserver(this, "content-document-global-created", false);
     Services.obs.addObserver(this, "quit-application-granted", false);
     this.running = true;
+    return this;
   },
 
   running: false,
 
   observe: function AM_observe(aSubject, aTopic, aData)
   {
-    log("_aTopic: " + aTopic);
     if (aTopic == "final-ui-startup") {
-      log("init addressbook observer");
       Services.obs.addObserver(this, "content-document-global-created", false);
     }
     if (aTopic == "content-document-global-created") {
@@ -90,8 +89,6 @@ let AddressbookManager = {
       // check if there is a public key in the document
       let window = XPCNativeWrapper.unwrap(aSubject);
       window.addEventListener("DOMContentLoaded", self.windowParser, false);
-
-      log("addEventListener added");
     }
     if (aTopic == "quit-application-granted") {
       Services.obs.removeObserver(this, "content-document-global-created");
@@ -100,22 +97,17 @@ let AddressbookManager = {
 
   windowParser: function AM_makeWindowParseFunction(aEvent)
   {
-    // aEvent.target.removeEventListener(aEvent.type, arguments.callee);
     AddressbookManager.discoverAddressbookEntry(aEvent.target);
   },
 
   parseWindow: function AM_parseWindow(aDocument)
   {
-    log("parseWindow");
     aDocument = XPCNativeWrapper.unwrap(aDocument);
-    log(aDocument);
     // look for an addressbook entry meta tag in the document
-    // aWindow.removeEventListener("DOMContentLoaded", arguments.callee);
     let metaTags = aDocument.querySelectorAll("meta");
     for (let i = 0; i < metaTags.length; i++) {
       let node = metaTags[i];
       if (node.getAttribute("name") == "addressbook-entry") {
-        // let entry = node.getAttribute("content");
         try {
           let entryObj = {
             pubKey: node.getAttribute("pubkey"),
@@ -123,7 +115,6 @@ let AddressbookManager = {
             domain: node.getAttribute("domain"),
             date:   node.getAttribute("date")
           };
-          log("entryObj: " + entryObj);
           return entryObj;
         }
         catch (ex) {
@@ -136,11 +127,7 @@ let AddressbookManager = {
 
   discoverAddressbookEntry: function AM_discoverAddressbookEntry(aDocument)
   {
-    log("_discoverAddressbookEntry");
-    log(aDocument);
     let entry = this.parseWindow(aDocument);
-
-    log(entry);
 
     if (!entry) {
       return;
@@ -150,10 +137,10 @@ let AddressbookManager = {
       return;
     }
     let idx = entry.handle + "@" + entry.domain;
-    if (idx in this.contacts) {
+    if (this.contacts[idx]) {
       // check if the key has changed
-      if (parseInt(this.contacts[idx].date) < parseInt(entry.date)) {
-        // key is the same, ignore this
+      if (parseInt(this.contacts[idx].date) == parseInt(entry.date)) {
+        // key is the same, ignore published entry
         Cu.reportError("DOMCrypt: Addressbook entry already in storage");
         return;
       }
@@ -172,9 +159,8 @@ let AddressbookManager = {
         // one last check to bail out
         return;
       }
-      // notify!
-
-      var nb = gBrowser.getNotificationBox();
+      let browser = gBrowser.getBrowserForDocument(aDocument);
+      var nb = gBrowser.getNotificationBox(browser);
       var notification = nb.getNotificationWithValue('addressbook-entry-found');
       if (notification) {
         notification.label = message;
@@ -190,9 +176,9 @@ let AddressbookManager = {
                        }];
 
         const priority = nb.PRIORITY_WARNING_MEDIUM;
-        nb.appendNotification(idx + " has published a DOMCrypt Address on this page",
+        nb.appendNotification(idx + " has published a DOMCrypt Addressbook Entry on this page",
                               'addressbook-entry-found',
-                              'chrome://browser/skin/Info.png',
+                              'chrome://global/skin/icons/Question.png',
                               priority,
                               buttons);
       }
@@ -205,7 +191,8 @@ let AddressbookManager = {
     if (!this.contacts) {
       this.getContactsObj();
     }
-    // TODO: check to see if we have this one yet before saving
+    // TODO: check to see if we have this one yet before saving as we might be
+    // overwriting an old key we might want to hang on to
     let idx = aContact.handle + "@" + aContact.domain;
     this.contacts[idx] = aContact;
     this.writeContactsToDisk();
@@ -221,6 +208,7 @@ let AddressbookManager = {
 
     if (!file.exists()) {
       file.create(Ci.nsIFile.NORMAL_FILE_TYPE, 0777);
+      this.contactsFileCreated = Date.now();
     }
     return file;
   },
@@ -255,25 +243,26 @@ let AddressbookManager = {
   getContactsObj: function AM_getContactsObj()
   {
     let newContacts = false;
+    let jsonObj;
+
     try {
       // get file, convert to JSON
-      let file = this.configurationFile();
-      try {
-        var str = this.getFileAsString(file);
-      }
-      catch (ex) {
-        newContacts = true;
-        var str = "{}";
-      }
-      let json = JSON.parse(str);
-      this.contacts = json;
-      if (newContacts) {
+      let file = this.contactsFile();
+      if (this.contactsFileCreated) {
+        this.contacts = {};
         this.writeContactsToDisk(this.contacts);
       }
+      else {
+        var str = this.getFileAsString(file);
+        jsonObj = JSON.parse(str);
+        this.contacts = jsonObj;
+      }
+      return this.contacts;
     }
     catch (ex) {
       log(ex);
       log(ex.stack);
+      return {};
     }
   },
 
@@ -303,4 +292,9 @@ let AddressbookManager = {
   }
 };
 
-AddressbookManager.init();
+let Addressbook = AddressbookManager.init();
+
+XPCOMUtils.defineLazyGetter(this, "addressbook",
+  function (){
+    return AddressbookManager.init();
+});

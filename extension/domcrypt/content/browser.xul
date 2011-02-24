@@ -3,5 +3,10 @@
 <?xml-stylesheet href="chrome://global/skin/global.css" type="text/css"?>
 <overlay id="domcrypt-browser-overlay"
          xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
-  <script type="application/javascript" src="chrome://domcrypt/content/addressbookManager.js"/>
+  <script type="application/javascript">
+    let scope = {};
+    Cu.import("resource://domcrypt/addressbookManager.js", scope);
+    // make sure the AddressbookManager is running
+    scope.addressbook.init();
+  </script>
 </overlay>
