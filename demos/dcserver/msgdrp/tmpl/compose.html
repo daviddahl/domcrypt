@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block main %}
+<h2>Compose</h2>
+<h3><button id="select-contact">Select a Contact...</button></h3>
+<div id="place-picker"></div>
+<h3>Message:</h3>
+<textarea id="write-message"></textarea>
+<div id="cipher-text"></div>
+<h3><button id="send">Encrypt & Send</button></h3>
+<div id="csrf_token">{% csrf_token %}</div>
+{% endblock main %}

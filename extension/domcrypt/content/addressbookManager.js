@@ -136,7 +136,7 @@ let AddressbookManager = {
       Cu.reportError("DOMCrypt Addressbook entry is malformed");
       return;
     }
-    let idx = entry.handle + "@" + entry.domain;
+    let idx = "@" + entry.domain + "/" + entry.handle;
     if (this.contacts[idx]) {
       // check if the key has changed
       if (parseInt(this.contacts[idx].date) == parseInt(entry.date)) {
@@ -193,8 +193,11 @@ let AddressbookManager = {
     }
     // TODO: check to see if we have this one yet before saving as we might be
     // overwriting an old key we might want to hang on to
-    let idx = aContact.handle + "@" + aContact.domain;
+    let idx = "@" + aContact.domain + "/" + aContact.handle;
+
     this.contacts[idx] = aContact;
+    // this.contacts[idx]['hash'] = sha2(aContact.pubKey); // no worky
+
     this.writeContactsToDisk();
   },
 
@@ -291,6 +294,29 @@ let AddressbookManager = {
     return data;
   }
 };
+
+function sha2(string) {
+  // stolen from weave/util.js
+  let converter = Cc["@mozilla.org/intl/scriptableunicodeconverter"].
+    createInstance(Ci.nsIScriptableUnicodeConverter);
+  converter.charset = "UTF-8";
+
+  let hasher = Cc["@mozilla.org/security/hash;1"]
+    .createInstance(Ci.nsICryptoHash);
+  hasher.init(hasher.SHA256);
+
+  let data = converter.convertToByteArray(string, {});
+  hasher.update(data, data.length);
+  let rawHash = hasher.finish(false);
+
+  // return the two-digit hexadecimal code for a byte
+  function toHexString(charCode) {
+    return ("0" + charCode.toString(16)).slice(-2);
+  }
+
+  let hash = [toHexString(rawHash.charCodeAt(i)) for (i in rawHash)].join("");
+  return hash;
+}
 
 let Addressbook = AddressbookManager.init();
 

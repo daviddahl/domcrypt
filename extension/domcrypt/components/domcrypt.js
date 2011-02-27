@@ -142,7 +142,8 @@ DOMCryptAPI.prototype = {
       promptDecrypt: self.promptDecrypt.bind(self),
       generateKeyPair: self.beginGenerateKeyPair.bind(self),
       getPubKey: self.getPubKey.bind(self),
-      getAddressbook: self.getAddressbook.bind(self)
+      getAddressbook: self.getAddressbook.bind(self),
+      makeHash: self.sha256.bind(self)
     };
 
     return obj;
@@ -174,7 +175,8 @@ DOMCryptAPI.prototype = {
     return { content: cryptoMessage, pubKey: aPubKey, wrappedKey: wrappedKey, iv: aIV };
   },
 
-  decrypt: function DAPI_decrypt(aMsg, aPassphrase) {
+  decrypt: function DAPI_decrypt(aMsg, aPassphrase)
+  {
     // aMsg is an object like this:
     // { content: |ENCRYPTED MESSAGE CONTENT|,
     //   wrappedKey: |SYMMETRIC WRAPPED KEY GENERATED AND RETURNED BY ENCRYPT()|,
@@ -226,7 +228,8 @@ DOMCryptAPI.prototype = {
     return this.config.default.pubKey;
   },
 
-  configurationFile: function DAPI_configFile() {
+  configurationFile: function DAPI_configFile()
+  {
     // get profile directory
     let file = Cc["@mozilla.org/file/directory_service;1"].
                  getService(Ci.nsIProperties).

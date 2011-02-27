@@ -1,0 +1,21 @@
+/* Styles */
+body { font-family: sans-serif; font-size: 1em; }
+.key { font-family: monospace; font-size: 0.8em; color: green; }
+#decrypted { color: blue; }
+#encrypted { color: red; }
+div { margin: 0.3em; padding: 0.2em; }
+h1 { font-size: 1.3em; }
+h2 { font-size: 1.2em; }
+h3 { font-size: 1em; }
+li { margin-top: 0.4em; }
+.bold { font-weight: bold; }
+#addressbook-data {color: green; font-family: monospace; word-wrap: break-word; width: 75%;}
+.footnote {font-size: 70%;}
+#base-title {margin-right: 20%;}
+#write-message { width: 50%; height: 10em;}
+#inbox {border-radius: 5px; border: 1px solid #ccc; background: #eee; min-height: 100px; max-width: 75%;}
+#inbox-link {cursor: pointer;}
+#outbox-link {cursor: pointer;}
+.message-counter {margin-left: 1em;}
+.msg-content { display: none; }
+#cipher-text {display: none;}
