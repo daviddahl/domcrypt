@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block metatags %}
+{% if entry %}
+    <meta
+       name="addressbook-entry" pubkey="{{ entry.pub_key }}"
+       handle="{{ entry.handle }}"
+       domain="{{ entry.domain }}"
+       date="{{ entry.date_modified }}"></meta>
+{% endif %}
+{% endblock metatags %}
+{% block main %}
+<h2>Handle searched for: {{ handle_lookup }}</h2>
+<div>
+  <p>
+    <h3>{{ msg }}</h3>
+    {% if entry %}
+    <h3>{{ entry.handle }}</h3>
+    {% else  %}
+    <h3>Please <button onclick="document.location = '/addressbook/'" id="search-again">Try Again</button></h3>
+    {% endif  %}
+  </p>
+</div>
+<div id="csrf_token">{% csrf_token %}</div>
+{% endblock main %}

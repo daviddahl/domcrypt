@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block main %}
+<h2>Addressbook</h2>
+<div class="explanation">Search the Addressbook for your contacts</div>
+<div>
+  <p>
+    <label for="handle">Enter a contact's 'Handle' - or portion thereof:</label>
+    <input type="text" id="enter-handle" maxlength="255"/>
+  </p>
+</div>
+<h3><button id="search-addressbook">Search</button></h3>
+<div id="csrf_token">{% csrf_token %}</div>
+{% endblock main %}

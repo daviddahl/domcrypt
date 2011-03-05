@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block main %}
+<h2>Create an addressbook entry</h2>
+<div class="explanation">An Addressbook Entry is required to communicate with your contacts.</div>
+<div>
+  <p>
+    <p>
+      You only need to choose a <i>'Handle'</i> to begin using <strong>MsgDrp</strong>, which is a username. 
+    </p>
+    <p>
+      This system provides  some psuedo-anonymity, using your name is not encouraged.</p>
+    <label for="handle">Choose a 'Handle'</label>
+    <input type="text" id="handle" maxlength="255"/>
+  </p>
+  <p>
+    A web page will be created for you on this server, which your contacts can visit to record your adressbook entry.
+  </p>
+  <p>
+    It is automatic, your contacts only need to visit the page one time.
+  </p>
+</div>
+<h3><button id="create-addressbook-entry">Create Addressbook Entry</button></h3>
+<div id="results-wrapper">
+  <h2 id="results" class="results"></h2>
+  <a id="addressbook-url" href=""></a>
+</div>
+<div id="csrf_token">{% csrf_token %}</div>
+{% endblock main %}

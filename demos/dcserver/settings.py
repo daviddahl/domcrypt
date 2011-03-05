@@ -4,11 +4,13 @@ import os
 TMPL_DIR = os.environ["DC_TMPL_DIR"]
 DB_PATH = os.environ["DC_DB_PATH"]
 
+DEFAULT_DOMAIN = "droplettr.com"
+
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
 
 ADMINS = (
-    # ('Admin', 'david@ddahl.com'),
+    ('Admin', 'david@ddahl.com'),
 )
 
 MANAGERS = ADMINS

@@ -201,6 +201,12 @@ let AddressbookManager = {
     this.writeContactsToDisk();
   },
 
+  removeContact: function AM_removeContact(aHandle)
+  {
+    // TODO: remove contact from this.contacts and JSON file
+    // TODO: expose to DOM API
+  },
+
   contactsFile: function AM_contactFile()
   {
     // get profile directory

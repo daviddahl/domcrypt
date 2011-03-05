@@ -9,13 +9,18 @@ h2 { font-size: 1.2em; }
 h3 { font-size: 1em; }
 li { margin-top: 0.4em; }
 .bold { font-weight: bold; }
-#addressbook-data {color: green; font-family: monospace; word-wrap: break-word; width: 75%;}
-.footnote {font-size: 70%;}
-#base-title {margin-right: 20%;}
-#write-message { width: 50%; height: 10em;}
-#inbox {border-radius: 5px; border: 1px solid #ccc; background: #eee; min-height: 100px; max-width: 75%;}
-#inbox-link {cursor: pointer;}
-#outbox-link {cursor: pointer;}
-.message-counter {margin-left: 1em;}
+#addressbook-data {color: green; font-family: monospace; word-wrap: break-word; width: 75%; }
+.footnote { font-size: 70%; }
+#base-title { margin-right: 5%; }
+#write-message { width: 50%; height: 10em; }
+#inbox { border-radius: 5px; border: 1px solid #ccc; background: #eee; min-height: 100px; max-width: 75%; }
+#inbox-link { cursor: pointer; }
+#outbox-link { cursor: pointer; }
+.message-counter { margin-left: 1em; }
 .msg-content { display: none; }
-#cipher-text {display: none;}
+#cipher-text { display: none; font-size: 60%; color: #ccc;}
+#results { color: red; font-weight: bold; }
+.plain-message { max-width: 90%; scroll: auto; word-wrap: break-word; }
+pre { white-space: pre-wrap; 
+.msg-list-msg { border: solid 1px #000; border-radius: 5px; }
+.msg-title { font-size: 60%; }  

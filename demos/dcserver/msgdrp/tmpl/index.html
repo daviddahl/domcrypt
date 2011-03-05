@@ -2,4 +2,26 @@
 {% block main %}
 <h2>Welcome to MsgDrp</h2>
 <p>Exchange pseudo-anonymous encrypted messages with your contacts</p>
+<div id="intro">
+  <div id="setup-status"></div>
+  <h3>In order to use this system you need the following:</h3>
+  <ul>
+    <li>
+      <a href="http://getfirefox.com" taget="_new">Firefox version 4</a>
+    </li>
+    <li>
+      <a href="http://mozilla.ddahl.com/domcrypt/extension/built/domcrypt.xpi" target="_new">DOMCrypt Firefox extension</a> which adds privacy enhancements to Firefox
+    </li>
+    <li>An addressbook entry stored on this server. 
+      <p>Click "Create Addressbook Entry" to begin.</p>
+      <p>
+        Your addressbook entry contains data about your "handle", server internet domain and cryptographic data used to secure messages sent to you, so that no one else can read them.
+      </p>
+    </li>
+    <li>You need to know the "handle" or username of the contacts you wish to exchange messages with. 
+      <p>Click "Addressbook Entry Lookup" to search for your contacts.</p>
+      <p>When you find a contact's addressbook entry, you will be prompted to save it so you do not have to keep looking it up.</p>
+    </li>
+  </ul>
+</div>
 {% endblock main %}
