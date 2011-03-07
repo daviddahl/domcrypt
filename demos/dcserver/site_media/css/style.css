@@ -24,3 +24,4 @@ li { margin-top: 0.4em; }
 pre { white-space: pre-wrap; 
 .msg-list-msg { border: solid 1px #000; border-radius: 5px; }
 .msg-title { font-size: 60%; }  
+.setup-msg { color: red; font-weight: bold; }

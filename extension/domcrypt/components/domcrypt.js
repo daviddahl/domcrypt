@@ -143,10 +143,41 @@ DOMCryptAPI.prototype = {
       generateKeyPair: self.beginGenerateKeyPair.bind(self),
       getPubKey: self.getPubKey.bind(self),
       getAddressbook: self.getAddressbook.bind(self),
-      makeHash: self.sha256.bind(self)
+      makeHash: self.sha256.bind(self),
+      utils: {
+        randomBytes: self.generateRandomBytes.bind(self),
+        randomNumber: self.generateRandomNumber.bind(self)
+      }
     };
 
     return obj;
+  },
+
+  generateRandomBytes: function DAPI_generateRB()
+  {
+    let mech = cryptoSvc.nss.PK11_AlgtagToMechanism(cryptoSvc.algorithm);
+    let size = cryptoSvc.nss.PK11_GetIVLength(mech);
+    let bytes = cryptoSvc.generateRandomBytes(size);
+    return this.window.atob(bytes);
+  },
+
+  generateRandomNumber: function DAPI_generateRandomNumber()
+  {
+    // This is a hack for the time being, there is faster number generation
+    // built into NSS to tap into properly
+    let mech = cryptoSvc.nss.PK11_AlgtagToMechanism(cryptoSvc.algorithm);
+    let size = cryptoSvc.nss.PK11_GetIVLength(mech);
+    let rndm = [];
+    for (var i = 0; i < size; i++) {
+      let bytes = this.generateRandomBytes();
+      for (let prop in bytes) {
+        let idx = parseInt(bytes[prop]);
+        if (idx in [0,1,2,3,4,5,6,7,8,9]) {
+          rndm.push(idx);
+        }
+      }
+    }
+    return parseInt(rndm.join(""));
   },
 
   getAddressbook: function DAPI_getAddressbook()

@@ -223,17 +223,18 @@ function onLoad()
     var loadMessage = [];
     if (!window.crypt) {
       loadMessage.push("You will need to install the DOMCrypt Extension to use this site");
+      loadMessage.push("Your local addressbook is empty, you will need to create and save an addressbook entry to use this site");
     }
     else {
       _crypt = true;
     }
 
-    if (!window.crypt.getPubKey()) {
-      loadMessage.push("Your local addressbook is empty, you will need to create and save an addressbook entry to use this site");
+    if (window.crypt) {
+      if (window.crypt.getPubKey()) {
+        _pubKey = true;
+      }
     }
-    else {
-      _pubKey = true;
-    }
+
     if (_pubKey && _crypt) {
       loadMessage.push("Your browser is setup to use this site:)");
     }

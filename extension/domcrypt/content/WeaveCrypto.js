@@ -130,7 +130,7 @@ WeaveCrypto.prototype = {
         // typedef enum
         this.nss_t.SECStatus = ctypes.int;
         // security/nss/lib/softoken/secmodt.h#59
-        // typedef struct PK11SlotInfoStr PK11SlotInfo; (defined in secmodti.h) 
+        // typedef struct PK11SlotInfoStr PK11SlotInfo; (defined in secmodti.h)
         this.nss_t.PK11SlotInfo = ctypes.void_t;
         // security/nss/lib/util/pkcs11t.h
         this.nss_t.CK_MECHANISM_TYPE = ctypes.unsigned_long;
@@ -224,7 +224,7 @@ WeaveCrypto.prototype = {
         // security/nss/lib/util/pkcs11t.h
         this.nss.CKK_RSA = 0x0;
         this.nss.CKM_RSA_PKCS_KEY_PAIR_GEN = 0x0000;
-        this.nss.CKM_AES_KEY_GEN           = 0x1080; 
+        this.nss.CKM_AES_KEY_GEN           = 0x1080;
         this.nss.CKA_ENCRYPT = 0x104;
         this.nss.CKA_DECRYPT = 0x105;
         this.nss.CKA_UNWRAP  = 0x107;
@@ -340,7 +340,7 @@ WeaveCrypto.prototype = {
         //                                              SECItem *salt);
         this.nss.PK11_CreatePBEV2AlgorithmID = nsslib.declare("PK11_CreatePBEV2AlgorithmID",
                                                               ctypes.default_abi, this.nss_t.SECAlgorithmID.ptr,
-                                                              this.nss_t.SECOidTag, this.nss_t.SECOidTag, this.nss_t.SECOidTag, 
+                                                              this.nss_t.SECOidTag, this.nss_t.SECOidTag, this.nss_t.SECOidTag,
                                                               ctypes.int, ctypes.int, this.nss_t.SECItem.ptr);
         // security/nss/lib/pk11wrap/pk11pub.h#736
         // PK11SymKey * PK11_PBEKeyGen(PK11SlotInfo *slot, SECAlgorithmID *algid,  SECItem *pwitem, PRBool faulty3DES, void *wincx);
@@ -380,9 +380,9 @@ WeaveCrypto.prototype = {
                                                      this.nss_t.CK_MECHANISM_TYPE, this.nss_t.SECKEYPublicKey.ptr,
                                                      this.nss_t.PK11SymKey.ptr, this.nss_t.SECItem.ptr);
         // security/nss/lib/pk11wrap/pk11pub.h#568
-        // SECKEYPrivateKey *PK11_UnwrapPrivKey(PK11SlotInfo *slot, 
+        // SECKEYPrivateKey *PK11_UnwrapPrivKey(PK11SlotInfo *slot,
         //                 PK11SymKey *wrappingKey, CK_MECHANISM_TYPE wrapType,
-        //                 SECItem *param, SECItem *wrappedKey, SECItem *label, 
+        //                 SECItem *param, SECItem *wrappedKey, SECItem *label,
         //                 SECItem *publicValue, PRBool token, PRBool sensitive,
         //                 CK_KEY_TYPE keyType, CK_ATTRIBUTE_TYPE *usage, int usageCount,
         //                 void *wincx);
@@ -595,7 +595,7 @@ WeaveCrypto.prototype = {
                                                              attrFlags, null);
             if (privKey.isNull())
                 throw Components.Exception("keypair generation failed", Cr.NS_ERROR_FAILURE);
-            
+
             let s = this.nss.PK11_SetPrivateKeyNickname(privKey, "Weave User PrivKey");
             if (s)
                 throw Components.Exception("key nickname failed", Cr.NS_ERROR_FAILURE);

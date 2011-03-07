@@ -105,14 +105,30 @@ def display_addressbook_entry(request, handle):
     lookup entry based on handle, display entry page
     """
     try:
-        entry = Addressbook.objects.get(handle=handle)
-        msg = "Addressbook entry was found"
+        if len(handle) < 3:
+            msg = "Please enter at least 3 characters of the handle you seek";
+            entry = None
+        else:
+            entry = Addressbook.objects.filter(handle__contains=handle)
+            msg = "Addressbook entry was found"
+            if entry.count() > 1:
+                return render_to_response("entry_search_list.html", 
+                                          {"entry": entry,
+                                           "handle_lookup": handle,
+                                           "msg": msg }, 
+                                          context_instance=RequestContext(request))
+            if entry.count() == 1:
+                return render_to_response("display_addressbook_entry.html", 
+                                          {"entry": entry[0],
+                                           "handle_lookup": handle,
+                                           "msg": msg }, 
+                                          context_instance=RequestContext(request))
     except Exception, e:
         print e
         entry = None
         msg = "Addressbook entry was not found"
-    return render_to_response("display_addressbook_entry.html", 
-                              {"entry": entry,
+    return render_to_response("entry_search_list.html", 
+                              {"entry": entry[0],
                                "handle_lookup": handle,
                                "msg": msg }, 
                               context_instance=RequestContext(request))
