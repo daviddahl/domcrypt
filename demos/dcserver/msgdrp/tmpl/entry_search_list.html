@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block main %}
+<h2>Handle searched for: {{ handle_lookup }}</h2>
+<div>
+  <p>
+    <h3>{{ msg }}</h3>
+    {% if entry %}
+      {% for e in entry %}
+        <h3><a href="/addressbook/{{ e.handle }}/"></a>{{ e.handle }}</h3>
+      {% endfor %}
+    {% else  %}
+    <h3>Please <button onclick="document.location = '/addressbook/'" id="search-again">Try Again</button></h3>
+    {% endif  %}
+  </p>
+</div>
+<div id="csrf_token">{% csrf_token %}</div>
+{% endblock main %}
