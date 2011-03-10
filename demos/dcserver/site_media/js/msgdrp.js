@@ -335,6 +335,7 @@ function onLoad()
         // need to create the pubKey
         alert("In order to use Messages, you will need to protect the messages you recieve with a passphrase.");
         window.crypt.generateKeyPair();
+        $("#remind-repeat-click")[0].innerHTML = " &lt;- Password Saved, please click again to create your Addressbook Entry ";
       }
     });
   }

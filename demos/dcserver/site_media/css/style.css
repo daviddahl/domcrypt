@@ -26,3 +26,4 @@ pre { white-space: pre-wrap; }
 .msg-title { font-size: 60%; }  
 .setup-status { color: red; font-weight: bold; }
 #credits { font-size: 60%; margin-top: 10em; }
+#remind-repeat-click { font-weight: bold; color: blue; }

@@ -52,12 +52,17 @@ function LogFactory(aMessagePrefix)
 }
 
 var log = LogFactory("*** DOMCrypt extension:");
-var alertsService;
 
-alertsService = Cc["@mozilla.org/alerts-service;1"].
-                  getService(Ci.nsIAlertsService);
+XPCOMUtils.defineLazyGetter(this, "alertsService", function (){
+    try {
+      return Cc["@mozilla.org/alerts-service;1"].getService(Ci.nsIAlertsService);
+    }
+    catch (ex) {
+      return null;  // Mac w/o growl:(
+    }
+});
 
-if (typeof alertsService.showAlertNotification == undefined) {
+if (!alertsService) {
   // This is a Mac without growl/ Linux without libnotify, etc...
    alertsService = {
     showAlertNotification:
@@ -76,14 +81,12 @@ function notify(aTitle, aText)
                                       false, "", null, "");
 }
 
-XPCOMUtils.defineLazyGetter(this, "cryptoSvc",
-                            function (){
+XPCOMUtils.defineLazyGetter(this, "cryptoSvc", function (){
   Cu.import("resource://domcrypt/WeaveCrypto.js");
   return new WeaveCrypto();
 });
 
-XPCOMUtils.defineLazyGetter(this, "Addressbook",
-  function (){
+XPCOMUtils.defineLazyGetter(this, "Addressbook", function (){
     Cu.import("resource://domcrypt/addressbookManager.js");
     return addressbook;
 });
