@@ -260,6 +260,7 @@ let AddressbookManager = {
       if (this.contactsFileCreated) {
         this.contacts = {};
         this.writeContactsToDisk(this.contacts);
+        this.contactsFileCreated = false;
       }
       else {
         var str = this.getFileAsString(file);

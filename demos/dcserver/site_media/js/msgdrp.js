@@ -23,7 +23,7 @@ function firstRun()
     _date = parseInt(_date);
     localStorage.setItem("outBox", '{"index": []}');
     localStorage.setItem("inBox", '{"index": []}');
-    localStorage.setItem("first-run", Date.now().toString());
+    localStorage.setItem("first-run", Date.now());
   }
   // load dbs
   MessageData.inBox = JSON.parse(localStorage.getItem("inBox"));
@@ -53,6 +53,7 @@ function displayMessages(aMessages)
 {
   // each message looks like
   // { hash: hsjfdshjdhjshjdhjsd, content: {...}, dateTime: 123456789 }
+  // TODO: add TIME_ZONE to each message as it is composed
   var len = aMessages.length;
   var parent = $("#inbox-messages");
   for (var i = 0; i < len; i++) {
@@ -62,9 +63,11 @@ function displayMessages(aMessages)
     var dt = aMessages[i].dateTime;
     var content = aMessages[i].content;
     var hash = aMessages[i].hash;
+    var from = aMessages[i].from;
     var node = '<div class="msg-list-msg" id="' + id +
                  '"><button onClick="displayMessage(this, ' +
-                   id + ');">Read</button><span class="msg-title"> ' + dt +
+                   id + ');">Read</button><span class="msg-title"> From  ' + from +
+                 " @" + dt +
                  '</span><a name="message-' + id  +  '"></a>' +
                  '<div class="msg-content">' + content + '</div>' +
                  '<pre class="plain-message" id="msg-plain-' + id + '"></pre>' +
@@ -74,7 +77,7 @@ function displayMessages(aMessages)
   $("#msg-count").text(aMessages.length);
   // TODO: localStorage is slow, maybe move this to indexedDB
   // save messages to localStorage
-  MessageData.saveMessageBox("inBox");
+  // MessageData.saveMessageBox("inBox");
 }
 
 function displayMessage(aNode, aID)
@@ -113,6 +116,7 @@ function send(aMsg)
     // TODO: add server SVC_KEY to all post and get requests
     $.post(url,
            { _hash: hash,
+             _from: localStorage.getItem("handle"),
              message: message,
              recipient: recipient,
              csrfmiddlewaretoken: csrf_token },
@@ -182,6 +186,11 @@ function onLoad()
     firstRun();
   });
 
+  $("#go-home").click(function () {
+    document.location = "/";
+    firstRun();
+  });
+
   $("#go-compose").click(function () {
     var t = Date.now();
     document.location = "/compose/?t=" + t;
@@ -220,13 +229,22 @@ function onLoad()
     // check for DOMCrypt and check for addressbook
     var _crypt = false;
     var _pubKey = false;
+    var _addressBook = false;
     var loadMessage = [];
     if (!window.crypt) {
-      loadMessage.push("You will need to install the DOMCrypt Extension to use this site");
-      loadMessage.push("Your local addressbook is empty, you will need to create and save an addressbook entry to use this site");
+      loadMessage.push($("<div class=\"setup-status\">You will need to install the <a href=\"http://mozilla.ddahl.com/domcrypt/extension/built/domcrypt.xpi\">DOMCrypt Extension</a> to use this site</div>"));
     }
     else {
       _crypt = true;
+    }
+
+    if (window.crypt) {
+      if (window.crypt.getAddressbook() == {}) {
+        loadMessage.push($("<div class=\"setup-status\">Your local addressbook is empty, you will need to <a href=\"/create/addressbook/entry/\">create an addressbook entry</a> to use this site</div>"));
+      }
+      else {
+        _addressBook = true;
+      }
     }
 
     if (window.crypt) {
@@ -236,12 +254,11 @@ function onLoad()
     }
 
     if (_pubKey && _crypt) {
-      loadMessage.push("Your browser is setup to use this site:)");
+      loadMessage.push($("<div class=\"setup-status\">Your browser is setup to use this site :)</div>"));
     }
     if (loadMessage.length) {
       for (var i = 0; i < loadMessage.length; i++) {
-        var node = $('<div class="setup-msg">' + loadMessage[i]  + '</div>');
-        $("#setup-status").append(node);
+        $("#setup-status-messages").append(loadMessage[i]);
       }
     }
   }
@@ -302,10 +319,12 @@ function onLoad()
             // store Service Key in localStorage
             localStorage.setItem("SERVICE_KEY", aData.serviceKey);
             localStorage.setItem("ADDRESSBOOK_URL", aData.entryURL);
+            localStorage.setItem("handle", handle);
             // show a confirmation that the addressbook entry was created
             $("#results").children().remove();
             $("#results").text(aData.msg);
             $("#addressbook-url").attr({href: aData.entryURL}).text(aData.entryURL);
+            $("#handle")[0].value = "";
           }
           else {
             alert(aData.msg);
@@ -314,7 +333,7 @@ function onLoad()
       }
       else {
         // need to create the pubKey
-        alert("In order to use MsgDrp, you will need to protect the messages you recieve with a passphrase.");
+        alert("In order to use Messages, you will need to protect the messages you recieve with a passphrase.");
         window.crypt.generateKeyPair();
       }
     });

@@ -21,7 +21,8 @@ li { margin-top: 0.4em; }
 #cipher-text { display: none; font-size: 60%; color: #ccc;}
 #results { color: red; font-weight: bold; }
 .plain-message { max-width: 90%; scroll: auto; word-wrap: break-word; }
-pre { white-space: pre-wrap; 
+pre { white-space: pre-wrap; }
 .msg-list-msg { border: solid 1px #000; border-radius: 5px; }
 .msg-title { font-size: 60%; }  
-.setup-msg { color: red; font-weight: bold; }
+.setup-status { color: red; font-weight: bold; }
+#credits { font-size: 60%; margin-top: 10em; }

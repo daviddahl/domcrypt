@@ -45,6 +45,7 @@ def fetch(request):
         _msgs = []
         for message in messages:
             _msgs.append({'id': message.id,
+                          'from': message._from,
                           'hash': message._hash, 
                           'content': message.content, 
                           'dateTime': str(message.date_time)})
@@ -78,7 +79,7 @@ def send(request):
     try:
         if request.POST['message'] and request.POST['_hash']:
             """the message will just be a JSON string to be stored lin the database"""
-            message = Message(_hash=request.POST['_hash'], content=request.POST['message'])
+            message = Message(_hash=request.POST['_hash'], content=request.POST['message'], _from=request.POST['_from'])
             message.save()
             msg = {'status': 'success', 'msg': "Message sent", "id": message.id }
 
@@ -105,19 +106,21 @@ def display_addressbook_entry(request, handle):
     lookup entry based on handle, display entry page
     """
     try:
+        msg = "Not Found"
         if len(handle) < 3:
             msg = "Please enter at least 3 characters of the handle you seek";
             entry = None
         else:
             entry = Addressbook.objects.filter(handle__contains=handle)
-            msg = "Addressbook entry was found"
             if entry.count() > 1:
+                msg = "addressbook entries were found"
                 return render_to_response("entry_search_list.html", 
                                           {"entry": entry,
                                            "handle_lookup": handle,
                                            "msg": msg }, 
                                           context_instance=RequestContext(request))
             if entry.count() == 1:
+                msg = entry[0].handle + " addressbook entry was found"
                 return render_to_response("display_addressbook_entry.html", 
                                           {"entry": entry[0],
                                            "handle_lookup": handle,
@@ -128,7 +131,7 @@ def display_addressbook_entry(request, handle):
         entry = None
         msg = "Addressbook entry was not found"
     return render_to_response("entry_search_list.html", 
-                              {"entry": entry[0],
+                              {"entry": entry,
                                "handle_lookup": handle,
                                "msg": msg }, 
                               context_instance=RequestContext(request))

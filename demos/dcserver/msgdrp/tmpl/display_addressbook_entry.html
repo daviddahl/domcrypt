@@ -12,9 +12,8 @@
 <h2>Handle searched for: {{ handle_lookup }}</h2>
 <div>
   <p>
-    <h3>{{ msg }}</h3>
     {% if entry %}
-    <h3>{{ entry.handle }}</h3>
+    <h3>{{ msg }}</h3>
     {% else  %}
     <h3>Please <button onclick="document.location = '/addressbook/'" id="search-again">Try Again</button></h3>
     {% endif  %}
