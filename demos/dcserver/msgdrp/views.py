@@ -168,7 +168,7 @@ def process_addressbook_creation(request):
     except Exception, e:
         print e
         msg = "Server Failure: Addressbook entry was not created"
-        results = {'status': "failure", 'msg': msg + " " + e}
+        results = {'status': "failure", 'msg': msg + " " + str(e)}
 
     return JsonResponse(results);
     
