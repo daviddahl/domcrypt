@@ -1,0 +1,52 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+  <head>
+     <script src="demo.js" type="text/javascript"></script>
+     <style>
+       body { font-family: sans-serif; font-size: 1em; }
+       .key { font-family: monospace; font-size: 0.8em; color: green; }
+       #decrypted { color: blue; }
+       #encrypted { color: red; }
+       div { margin: 0.3em; padding: 0.2em; }
+       h1 { font-size: 1.3em; }
+       h2 { font-size: 1.2em; }
+       h3 { font-size: 1em; }
+       li { margin-top: 0.4em; }
+       .bold { font-weight: bold; }
+       pre { word-wrap: break-word; }
+       #results {width: 50%;}
+     </style>
+  </head>
+  <body>
+    <h1>DOMCrypt Signing Demo</h1>
+
+    <div>See <a href="https://github.com/daviddahl/domcrypt">https://github.com/daviddahl/domcrypt</a> for source code</div>
+    <div id="explanation">
+      Sign a message via NSS PK11_Sign()
+    </div>
+    <ul>
+      <li class="bold"><a href="http://www.mozilla.com/en-US/firefox/">Firefox 4 </a> or <a href="http://nightly.mozilla.org/">nightly</a> required</li>
+      <li><a href="../extension/built/domcrypt.xpi">Install the extension</a> and restart your browser.</li>
+      <li>Load this page and follow the next 2 steps:</li>
+    </ul>
+    <div>
+      <h2>Message to sign</h2>
+      <p id="message">This is a pretend super-s3kr3t m355ag3, for yr eyes only and stuff. This message will self destruct in 42 minutes.</p>
+      <button onclick="signMessage();">1. Sign message</button>
+      <h2>Signature</h2>
+      <pre id="results"></pre>
+    </div>
+
+    <div>
+      <h2>Verify Signature</h2>
+      <div class="explanation">
+        Verify a message was sent by sender via NSS PK11_Sign()
+      </div>
+      <button onclick="verifySignature();">2. Verify sender</button>
+      <h2>Results</h2>
+      <pre id="results-verify"></pre>
+    </div>
+  </body>
+</html>

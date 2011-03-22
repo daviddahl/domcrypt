@@ -142,6 +142,8 @@ DOMCryptAPI.prototype = {
     let obj = {
       encrypt: self.encrypt.bind(self),
       decrypt: self.decrypt.bind(self),
+      sign: self.sign.bind(self),
+      verify: self.verify.bind(self),
       promptDecrypt: self.promptDecrypt.bind(self),
       generateKeyPair: self.beginGenerateKeyPair.bind(self),
       getPubKey: self.getPubKey.bind(self),
@@ -260,6 +262,45 @@ DOMCryptAPI.prototype = {
   getPubKey: function DAPI_getPubKey()
   {
     return this.config.default.pubKey;
+  },
+
+  sign: function DAPI_sign(aMessage)
+  {
+    // Sign a message
+    let passphrase = {};
+    let prompt = promptSvc.promptPassword(this.window,
+                                          PROMPT_TITLE_DECRYPT,
+                                          PROMPT_TEXT_DECRYPT,
+                                          passphrase, null, {value: false});
+    // TODO: verify passphrase
+    if (passphrase.value) {
+      var verify = cryptoSvc.verifyPassphrase(this.config.default.privKey,
+                                              passphrase.value,
+                                              this.config.default.salt,
+                                              this.config.default.iv);
+      // verifyPassphrase  will throw if the passphrase is not verified
+
+      // now we can sign the message
+      let privKey = this.config.default.privKey;
+      let iv = this.config.default.iv;
+      let salt = this.config.default.salt;
+      let hash = this.sha256(aMessage);
+      let sig = cryptoSvc.sign(privKey, iv, salt, passphrase.value, hash);
+      return sig;
+    }
+    else {
+      throw new Error("You must enter a passphrase");
+    }
+  },
+
+  verify: function DAPI_verify(aSignature, aHash, aPublicKey)
+  {
+    // verify a Signature
+    let results = cryptoSvc.verify(aPublicKey, aSignature, aHash);
+    if (results) {
+      return true;
+    }
+    return false;
   },
 
   configurationFile: function DAPI_configFile()

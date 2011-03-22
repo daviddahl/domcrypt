@@ -19,6 +19,7 @@
  *
  * Contributor(s):
  *  Justin Dolske <dolske@mozilla.com> (original author)
+ *  David Dahl <ddahl@mozilla.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -43,6 +44,10 @@ const Cr = Components.results;
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/ctypes.jsm");
+
+function log(aMsg) {
+  dump("WeaveCrypto: " + aMsg + "\n");
+}
 
 function WeaveCrypto() {
     this.init();
@@ -258,6 +263,38 @@ WeaveCrypto.prototype = {
                                               ctypes.default_abi, this.nss_t.PK11SymKey.ptr,
                                               this.nss_t.PK11SlotInfo.ptr, this.nss_t.CK_MECHANISM_TYPE,
                                               this.nss_t.SECItem.ptr, ctypes.int, ctypes.voidptr_t);
+
+        // SIGNING API //////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////
+
+        // security/nss/pk11wrap/pk11pub.h#682
+        // int PK11_SignatureLength(SECKEYPrivateKey *key);
+        this.nss.PK11_SignatureLen = nsslib.declare("PK11_SignatureLen",
+                                                    ctypes.default_abi,
+                                                    ctypes.int,
+                                                    this.nss_t.SECKEYPrivateKey.ptr);
+
+        // security/nss/pk11wrap/pk11pub.h#684
+        // SECStatus PK11_Sign(SECKEYPrivateKey *key, SECItem *sig, SECItem *hash);
+        this.nss.PK11_Sign = nsslib.declare("PK11_Sign",
+                                            ctypes.default_abi,
+                                            this.nss_t.SECStatus,
+                                            this.nss_t.SECKEYPrivateKey.ptr,
+                                            this.nss_t.SECItem.ptr,
+                                            this.nss_t.SECItem.ptr);
+
+        // security/nss/pk11wrap/pk11pub.h#687
+        // SECStatus PK11_Verify(SECKEYPublicKey *key, SECItem *sig, SECItem *hash, void *wincx);
+        this.nss.PK11_Verify = nsslib.declare("PK11_Verify",
+                                              ctypes.default_abi,
+                                              this.nss_t.SECStatus,
+                                              this.nss_t.SECKEYPublicKey.ptr,
+                                              this.nss_t.SECItem.ptr,
+                                              this.nss_t.SECItem.ptr,
+                                              ctypes.voidptr_t);
+        // END SIGNING API
+        //////////////////////////////////////////////////////////////////////////
+
         // security/nss/lib/pk11wrap/pk11pub.h#477
         // SECStatus PK11_ExtractKeyValue(PK11SymKey *symKey);
         this.nss.PK11_ExtractKeyValue = nsslib.declare("PK11_ExtractKeyValue",
@@ -496,6 +533,7 @@ WeaveCrypto.prototype = {
         // outputBuffer contains UTF-8 data, let js-ctypes autoconvert that to a JS string.
         // XXX Bug 573842: wrap the string from ctypes to get a new string, so
         // we don't hit bug 573841.
+        // XXXddahl: this may not be needed any longer as bug 573841 is fixed
         return "" + outputBuffer.readString() + "";
     },
 
@@ -566,6 +604,91 @@ WeaveCrypto.prototype = {
         }
     },
 
+    sign : function _sign(encodedPrivateKey, iv, salt, passphrase, hash) {
+        this.log("sign() called");
+
+        let privKey, ivParam, wrappedPrivKey, ivItem,
+          privKeyUsage, wrapMech, keyID, pbeKey, slot, _hash, sig;
+
+        wrappedPrivKey = this.makeSECItem(encodedPrivateKey, true);
+
+        _hash = this.makeSECItem(hash, false);
+
+        sig = this.makeSECItem("", false);
+
+        ivItem  = this.makeSECItem(iv, true);
+
+        keyID = ivItem.address();
+
+        let privKeyUsageLength = 1;
+        privKeyUsage =
+            new ctypes.ArrayType(this.nss_t.CK_ATTRIBUTE_TYPE, privKeyUsageLength)();
+        privKeyUsage[0] = this.nss.CKA_UNWRAP;
+
+        pbeKey = this._deriveKeyFromPassphrase(passphrase, salt);
+
+        // AES_128_CBC --> CKM_AES_CBC --> CKM_AES_CBC_PAD
+        wrapMech = this.nss.PK11_AlgtagToMechanism(this.algorithm);
+        wrapMech = this.nss.PK11_GetPadMechanism(wrapMech);
+
+        if (wrapMech == this.nss.CKM_INVALID_MECHANISM)
+            throw Components.Exception("unwrapSymKey: unknown key mech", Cr.NS_ERROR_FAILURE);
+
+        ivParam = this.nss.PK11_ParamFromIV(wrapMech, ivItem.address());
+        if (ivParam.isNull())
+            throw Components.Exception("unwrapSymKey: PK11_ParamFromIV failed", Cr.NS_ERROR_FAILURE);
+
+        slot = this.nss.PK11_GetInternalSlot();
+        if (slot.isNull())
+            throw Components.Exception("couldn't get internal slot", Cr.NS_ERROR_FAILURE);
+        privKey = this.nss.PK11_UnwrapPrivKey(slot,
+                                              pbeKey,
+                                              wrapMech,
+                                              ivParam,
+                                              wrappedPrivKey.address(),
+                                              null,   // label
+                                              keyID,
+                                              false, // isPerm (token object)
+                                              true,  // isSensitive
+                                              this.nss.CKK_RSA,
+                                              privKeyUsage.addressOfElement(0),
+                                              privKeyUsageLength,
+                                              null);  // wincx
+
+        let sigLen = this.nss.PK11_SignatureLen(privKey);
+        sig.len = sigLen;
+        sig.data = new ctypes.ArrayType(ctypes.unsigned_char, sigLen)();
+
+        let status = this.nss.PK11_Sign(privKey, sig.address(), _hash.address());
+        if (status == -1)
+            throw Components.Exception("Could not sign message", Cr.NS_ERROR_FAILURE);
+        return this.encodeBase64(sig.data, sig.len);
+    },
+
+    verify : function _verify(encodedPublicKey, signature, hash) {
+        this.log("verify() called");
+        let pubKeyData = this.makeSECItem(encodedPublicKey, true);
+        let pubKey;
+        let pubKeyInfo = this.nss.SECKEY_DecodeDERSubjectPublicKeyInfo(pubKeyData.address());
+        if (pubKeyInfo.isNull())
+            throw Components.Exception("SECKEY_DecodeDERSubjectPublicKeyInfo failed", Cr.NS_ERROR_FAILURE);
+
+        pubKey = this.nss.SECKEY_ExtractPublicKey(pubKeyInfo);
+        if (pubKey.isNull())
+            throw Components.Exception("SECKEY_ExtractPublicKey failed", Cr.NS_ERROR_FAILURE);
+
+        let sig = this.makeSECItem(signature, true);
+
+        let _hash = this.makeSECItem(hash, false);
+
+        let status =
+            this.nss.PK11_Verify(pubKey, sig.address(), _hash.address(), null);
+        if (status == -1) {
+            Components.utils.reportError("DOMCrypt: Could not verify message");
+            return false;
+        }
+        return true;
+    },
 
     generateKeypair : function(passphrase, salt, iv, out_encodedPublicKey, out_wrappedPrivateKey) {
         this.log("generateKeypair() called.");
@@ -985,8 +1108,10 @@ WeaveCrypto.prototype = {
     // EG, for "ABC",  0x0041, 0x0042, 0x0043 --> 0x41, 0x42, 0x43
     byteCompress : function (jsString, charArray) {
         let intArray = ctypes.cast(charArray, ctypes.uint8_t.array(charArray.length));
-        for (let i = 0; i < jsString.length; i++)
+        for (let i = 0; i < jsString.length; i++) {
             intArray[i] = jsString.charCodeAt(i) % 256; // convert to bytes
+        }
+
     },
 
     // Expand a normal C string (1-byte chars) into a JS string (2-byte chars)
@@ -997,6 +1122,7 @@ WeaveCrypto.prototype = {
         let intData = ctypes.cast(charArray, ctypes.uint8_t.array(len));
         for (let i = 0; i < len; i++)
             expanded += String.fromCharCode(intData[i]);
+
         return expanded;
     },
 
@@ -1006,7 +1132,8 @@ WeaveCrypto.prototype = {
         let expanded = "";
         let intData = ctypes.cast(data, ctypes.uint8_t.array(len).ptr).contents;
         for (let i = 0; i < len; i++)
-            expanded += String.fromCharCode(intData[i]);
+          expanded += String.fromCharCode(intData[i]);
+
         return btoa(expanded);
     },
 
@@ -1014,6 +1141,7 @@ WeaveCrypto.prototype = {
     makeSECItem : function(input, isEncoded) {
         if (isEncoded)
             input = atob(input);
+
         let outputData = new ctypes.ArrayType(ctypes.unsigned_char, input.length)();
         this.byteCompress(input, outputData);
 
