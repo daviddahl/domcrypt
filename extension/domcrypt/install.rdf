@@ -4,11 +4,10 @@
   <Description about="urn:mozilla:install-manifest">
     <em:id>domcrypt@ddahl.com</em:id>
     <em:name>DOMCrypt</em:name>
-    <em:version>0.2</em:version>
+    <em:version>0.3</em:version>
     <em:description>Provides window.mozCipher crypto tools to each window</em:description>
     <em:creator>David Dahl</em:creator>
     <em:homepageURL>http://domcrypt.org/</em:homepageURL>
-    <!-- <em:updateURL>https://domcrypt.org/extension/domcrypt/install.rdf</em:updateURL> -->
     <em:type>2</em:type> <!-- type=extension --> 
 
     <em:targetApplication>
@@ -19,15 +18,6 @@
         <em:maxVersion>4.0.*</em:maxVersion>
       </Description>
     </em:targetApplication>
-
-    <!-- <em:targetApplication> -->
-    <!--   <\!-- Fennec -\-> -->
-    <!--   <Description> -->
-    <!--     <em:id>{a23983c0-fd0e-11dc-95ff-0800200c9a66}</em:id> -->
-    <!--     <em:minVersion>1.1</em:minVersion> -->
-    <!--     <em:maxVersion>4.0.*</em:maxVersion> -->
-    <!--   </Description> -->
-    <!-- </em:targetApplication> -->
 
   </Description>
 </RDF>
