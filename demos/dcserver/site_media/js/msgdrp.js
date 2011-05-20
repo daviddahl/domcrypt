@@ -32,7 +32,7 @@ function firstRun()
 
 function fetchMessages()
 {
-  var url = "/fetch/?h=" + window.crypt.makeHash(window.crypt.getPubKey());
+  var url = "/fetch/?h=" + window.mozCipher.hash.SHA256(window.mozCipher.pk.getPublicKey());
   // get all messages on server, store in localStorage, display list "inbox"
   $.get(url, function (aData){
     if (aData.status == 'success') {
@@ -88,7 +88,7 @@ function displayMessage(aNode, aID)
   console.log(messageContent);
   var messageObj = JSON.parse(messageContent);
   try {
-    var message = window.crypt.promptDecrypt(messageObj);
+    var message = window.mozCipher.pk.promptDecrypt(messageObj);
     console.log(message);
     $("#msg-plain-" + aID)[0].innerHTML = message;
   }
@@ -109,8 +109,8 @@ function send(aMsg)
   if ($("#recipient-picker")[0].value && $("#cipher-text").text()) {
     var message = $("#cipher-text").text();
     var recipient = $("#recipient-picker")[0].value;
-    var pubKey = window.crypt.getAddressbook()[recipient].pubKey;
-    var hash = window.crypt.makeHash(pubKey);
+    var pubKey = window.mozCipher.pk.getAddressbook()[recipient].pubKey;
+    var hash = window.mozCipher.hash.SHA256(pubKey);
     var url = "/send/";
     var csrf_token = $('#csrf_token >div >input').attr("value");
     // TODO: add server SVC_KEY to all post and get requests
@@ -145,9 +145,9 @@ function encryptMessage()
   if ($("#recipient-picker")[0].value && $("#write-message")[0].value) {
     var plainText = $("#write-message")[0].value;
     var recipient = $("#recipient-picker")[0].value;
-    var addressbookEntry = window.crypt.getAddressbook()[recipient];
-    var hash = window.crypt.makeHash(addressbookEntry.pubKey);
-    var message = window.crypt.encrypt(plainText, addressbookEntry.pubKey);
+    var addressbookEntry = window.mozCipher.pk.getAddressbook()[recipient];
+    var hash = window.mozCipher.hash.SHA256(addressbookEntry.pubKey);
+    var message = window.mozCipher.pk.encrypt(plainText, addressbookEntry.pubKey);
     var messageText = JSON.stringify(message);
     $("#write-message").fadeOut("slow");
     $("#cipher-text").text(messageText).fadeIn("slow");
@@ -161,7 +161,7 @@ function chooseRecipientUI()
 {
   // display UI to pick recipient from Addressbook
   // get addressbook entries:
-  var entries = window.crypt.getAddressbook();
+  var entries = window.mozCipher.pk.getAddressbook();
   var entriesArr = [];
   for (var prop in entries) {
     entriesArr.push(entries[prop]);
@@ -231,15 +231,15 @@ function onLoad()
     var _pubKey = false;
     var _addressBook = false;
     var loadMessage = [];
-    if (!window.crypt) {
+    if (!window.mozCipher) {
       loadMessage.push($("<div class=\"setup-status\">You will need to install the <a href=\"http://mozilla.ddahl.com/domcrypt/extension/built/domcrypt.xpi\">DOMCrypt Extension</a> to use this site</div>"));
     }
     else {
       _crypt = true;
     }
 
-    if (window.crypt) {
-      if (window.crypt.getAddressbook() == {}) {
+    if (window.mozCipher) {
+      if (window.mozCipher.pk.getAddressbook() == {}) {
         loadMessage.push($("<div class=\"setup-status\">Your local addressbook is empty, you will need to <a href=\"/create/addressbook/entry/\">create an addressbook entry</a> to use this site</div>"));
       }
       else {
@@ -247,8 +247,8 @@ function onLoad()
       }
     }
 
-    if (window.crypt) {
-      if (window.crypt.getPubKey()) {
+    if (window.mozCipher) {
+      if (window.mozCipher.pk.getPubKey()) {
         _pubKey = true;
       }
     }
@@ -278,10 +278,10 @@ function onLoad()
 
   if (window.location.pathname == "/create/addressbook/entry/") {
     $("#create-message-password").click(function (){
-      // start generateKeyPair()
-      window.crypt.generateKeyPair();
+      // start generateKeypair()
+      window.mozCipher.pk.generateKeypair();
       window.setTimeout(function() {
-        if (window.crypt.getPubKey()) {
+        if (window.mozCipher.pk.getPublicKey()) {
           // we have a key, we can proceed
           alert("Your password was successfully created");
         }
@@ -301,14 +301,14 @@ function onLoad()
         return;
       }
       // check for a pubKey already created
-      var pubKey = window.crypt.getPubKey();
+      var pubKey = window.mozCipher.pk.getPublicKey();
       if (pubKey) {
         // gather bits for addressbook entry:
         var csrf_token = $('#csrf_token >div >input').attr("value");
         var addressbookInput = {
           pubKey: pubKey,
           handle: handle,
-          hash: window.crypt.makeHash(pubKey),
+          hash: window.mozCipher.hash.SHA256(pubKey),
           date: parseInt(Date.now()),
           csrfmiddlewaretoken: csrf_token
         };
@@ -334,7 +334,7 @@ function onLoad()
       else {
         // need to create the pubKey
         alert("In order to use Messages, you will need to protect the messages you recieve with a passphrase.");
-        window.crypt.generateKeyPair();
+        window.mozCipher.pk.generateKeypair();
         $("#remind-repeat-click")[0].innerHTML = " &lt;- Password Saved, please click again to create your Addressbook Entry ";
       }
     });

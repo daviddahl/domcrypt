@@ -187,7 +187,7 @@ let AddressbookManager = {
 
   saveContactIntoAddressbook: function AM_saveContactIntoAddressbook(aContact)
   {
-    // get .domcrypt_contacts.json if the data is not loaded
+    // get .mozCipher_contacts.json if the data is not loaded
     if (!this.contacts) {
       this.getContactsObj();
     }
@@ -213,10 +213,10 @@ let AddressbookManager = {
     let file = Cc["@mozilla.org/file/directory_service;1"].
                  getService(Ci.nsIProperties).
                  get("ProfD", Ci.nsIFile);
-    file.append(".domcrypt_contacts.json");
+    file.append(".mozCipher_contacts.json");
 
     if (!file.exists()) {
-      file.create(Ci.nsIFile.NORMAL_FILE_TYPE, 0777);
+      file.create(Ci.nsIFile.NORMAL_FILE_TYPE, 0600);
       this.contactsFileCreated = Date.now();
     }
     return file;

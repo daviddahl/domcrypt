@@ -1,4 +1,5 @@
 resource domcrypt content/
 content domcrypt content/
+locale domcrypt en-US locale/en-US/
 overlay chrome://browser/content/browser.xul chrome://domcrypt/content/browser.xul
 manifest components/domcrypt.manifest

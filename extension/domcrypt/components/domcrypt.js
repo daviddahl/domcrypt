@@ -11,15 +11,15 @@
  * for the specific language governing rights and limitations under the
  * License.
  *
- * The Original Code is DOMCrypt PKI Code.
+ * The Original Code is DOMCrypt API code.
  *
- * The Initial Developer of the Original Code is David Dahl.
- *
+ * The Initial Developer of the Original Code is
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2011
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s):
- *   David Dahl <david@ddahl.com> (Original Author)
+ *  David Dahl <ddahl@mozilla.com>  (Original Author)
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -35,55 +35,26 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cu = Components.utils;
+let Cu = Components.utils;
+let Ci = Components.interfaces;
+let Cc = Components.classes;
+let Cr = Components.results;
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 
-function LogFactory(aMessagePrefix)
-{
-  function log(aMessage) {
-    var _msg = aMessagePrefix + " " + aMessage + "\n";
-    dump(_msg);
-  }
-  return log;
+function log(aMessage) {
+  var _msg = "DOMCryptAPI: " + aMessage + "\n";
+  dump(_msg);
 }
 
-var log = LogFactory("*** DOMCrypt extension:");
-
-XPCOMUtils.defineLazyGetter(this, "alertsService", function (){
-    try {
-      return Cc["@mozilla.org/alerts-service;1"].getService(Ci.nsIAlertsService);
-    }
-    catch (ex) {
-      return null;  // Mac w/o growl:(
-    }
+XPCOMUtils.defineLazyGetter(this, "crypto", function (){
+  Cu.import("resource://domcrypt/DOMCryptMethods.jsm");
+  return DOMCryptMethods;
 });
 
-if (!alertsService) {
-  // This is a Mac without growl/ Linux without libnotify, etc...
-   alertsService = {
-    showAlertNotification:
-    function AS_showAlertNotification(aNull, aTitle, aText)
-    {
-      Services.console.logStringMessage("*** DOMCrypt: " + aTitle + " " + aText);
-    }
-  };
-}
-
-function notify(aTitle, aText)
-{
-  alertsService.showAlertNotification(null,
-                                      aTitle,
-                                      aText,
-                                      false, "", null, "");
-}
-
-XPCOMUtils.defineLazyGetter(this, "cryptoSvc", function (){
-  Cu.import("resource://domcrypt/WeaveCrypto.js");
-  return new WeaveCrypto();
+XPCOMUtils.defineLazyGetter(this, "promptSvc", function() {
+  return Cc["@mozilla.org/embedcomp/prompt-service;1"].getService(Ci.nsIPromptService);
 });
 
 XPCOMUtils.defineLazyGetter(this, "Addressbook", function (){
@@ -91,423 +62,351 @@ XPCOMUtils.defineLazyGetter(this, "Addressbook", function (){
     return addressbook;
 });
 
-XPCOMUtils.defineLazyGetter(this, "promptSvc", function() {
-  return Cc["@mozilla.org/embedcomp/prompt-service;1"].getService(Ci.nsIPromptService);
-});
+/**
+ * DOMCrypt/mozCipher API
+ *
+ * This is a shim (nsIDOMGlobalPropertyInitializer) object that wraps the
+ * DOMCryptMethods.jsm 'crypto' object
+ *
+ * DOMCrypt's init method returns the API that is content JS accessible.
+ *
+ * DOMCryptAPI imports DOMCryptMethods, DOMCryptMethods generates the ChromeWorker
+ * that runs all WeaveCrypto (NSS) functions off main thread via ctypes
+ */
 
-const PROMPT_TITLE_GENERATE = "Enter a passphrase";
-const PROMPT_TEXT_GENERATE =
-  "Enter a passphrase that will be used to keep your messages secure";
-const PROMPT_TITLE_GENERATE_CONFIRM = "Confirm the passphrase";
-const PROMPT_TEXT_GENERATE_CONFIRM =
-  "Confirm you know the passphrase you just entered";
-const PROMPT_TITLE_PASSPHRASE_NOT_CONFIRMED = "Passphrases do not match";
-const PROMPT_TEXT_PASSPHRASE_NOT_CONFIRMED =
-  "Error: The passphrase and confirmation do not match";
-const PROMPT_TITLE_DECRYPT = "Enter Passphrase";
-const PROMPT_TEXT_DECRYPT = "Enter Passphrase";
-
-let BLANK_CONFIG_OBJECT = {
-  default: {
-    hashedPassphrase: null,
-    created: null,
-    privKey: null,
-    pubKey: null,
-    salt: null,
-    iv: null
-  }
-};
-
-let BLANK_CONFIG_OBJECT_STR = "{'default': {'hashedPassphrase': null,'created': null,'privKey': null,'pubKey': null,'salt': null,'iv': null}};";
-
-function DOMCryptAPI(){
-
-}
+function DOMCryptAPI() {}
 
 DOMCryptAPI.prototype = {
 
-  classID:          Components.ID("{66af630d-6d6d-4d29-9562-9f1de90c1798}"),
+  classID: Components.ID("{66af630d-6d6d-4d29-9562-9f1de90c1798}"),
 
-  QueryInterface: XPCOMUtils.generateQI([Ci.nsIDOMGlobalPropertyInitializer]),
+  QueryInterface: XPCOMUtils.generateQI([Ci.nsIDOMGlobalPropertyInitializer,
+                                         Ci.nsIObserver,]),
 
-  init: function DC_init(aWindow)
+  /**
+   * We must free the sandbox and window references every time an
+   * innerwindow is destroyed
+   * TODO: must listen for back/forward events to reinstate the window object
+   *
+   * @param object aSubject
+   * @param string aTopic
+   * @param string aData
+   *
+   * @returns void
+   */
+  observe: function DA_observe(aSubject, aTopic, aData)
   {
+    if (aTopic == "inner-window-destroyed") {
+      let windowID = aSubject.QueryInterface(Ci.nsISupportsPRUint64).data;
+      let innerWindowID = this.window.QueryInterface(Ci.nsIInterfaceRequestor).
+                            getInterface(Ci.nsIDOMWindowUtils).currentInnerWindowID;
+      if (windowID == innerWindowID) {
+        crypto.shutdown();
+        delete this.sandbox;
+        delete this.window;
+        Services.obs.removeObserver(this, "inner-window-destroyed");
+      }
+    }
+  },
+
+  /**
+   * This method sets up the crypto API and returns the object that is
+   * accessible from the DOM
+   *
+   * @param nsIDOMWindow aWindow
+   * @returns object
+   *          The object returned is the API object called 'window.mozCipher'
+   */
+  init: function DA_init(aWindow) {
+
     let self = this;
-    this.pubKey = null;
-    this.getConfigObj();
+
     this.window = XPCNativeWrapper.unwrap(aWindow);
-    this.salt = cryptoSvc.generateRandomBytes(16);
-    this.iv = cryptoSvc.generateRandomIV();
 
-    let obj = {
-      encrypt: self.encrypt.bind(self),
-      decrypt: self.decrypt.bind(self),
-      sign: self.sign.bind(self),
-      verify: self.verify.bind(self),
-      promptDecrypt: self.promptDecrypt.bind(self),
-      generateKeyPair: self.beginGenerateKeyPair.bind(self),
-      getPubKey: self.getPubKey.bind(self),
-      getAddressbook: self.getAddressbook.bind(self),
-      makeHash: self.sha256.bind(self),
-      utils: {
-        randomBytes: self.generateRandomBytes.bind(self),
-        randomNumber: self.generateRandomNumber.bind(self)
-      }
+    this.sandbox = Cu.Sandbox(this.window,
+                              { sandboxPrototype: this.window, wantXrays: false });
+
+    Services.obs.addObserver(this, "inner-window-destroyed", false);
+
+    let api = {
+
+      // "pk": Public Key encryption namespace
+      pk: {
+        encrypt: self.encrypt.bind(self),
+        decrypt: self.promptDecrypt.bind(self),
+        sign: self.sign.bind(self),
+        verify: self.verify.bind(self),
+        generateKeypair: self.beginGenerateKeypair.bind(self),
+        getPublicKey: self.getPublicKey.bind(self),
+        getAddressbook: self.getAddressbook.bind(self),
+      },
+
+      hash: {
+        SHA256: self.SHA256.bind(self)
+      },
+
+      __exposedProps__: {
+        pk: "r",
+        hash: "r",
+      },
     };
 
-    return obj;
+    return api;
   },
 
-  generateRandomBytes: function DAPI_generateRB()
+  getAddressbook: function DAPI_getAddressbook(aCallback)
   {
-    let mech = cryptoSvc.nss.PK11_AlgtagToMechanism(cryptoSvc.algorithm);
-    let size = cryptoSvc.nss.PK11_GetIVLength(mech);
-    let bytes = cryptoSvc.generateRandomBytes(size);
-    return this.window.atob(bytes);
-  },
-
-  generateRandomNumber: function DAPI_generateRandomNumber()
-  {
-    // This is a hack for the time being, there is faster number generation
-    // built into NSS to tap into properly
-    let mech = cryptoSvc.nss.PK11_AlgtagToMechanism(cryptoSvc.algorithm);
-    let size = cryptoSvc.nss.PK11_GetIVLength(mech);
-    let rndm = [];
-    for (var i = 0; i < size; i++) {
-      let bytes = this.generateRandomBytes();
-      for (let prop in bytes) {
-        let idx = parseInt(bytes[prop]);
-        if (idx in [0,1,2,3,4,5,6,7,8,9]) {
-          rndm.push(idx);
-        }
-      }
+    if (!(typeof aCallback == "function")) {
+      let exception =
+        new Components.Exception("First argument should be a function",
+                                 Cr.NS_ERROR_INVALID_ARG,
+                                 Components.stack.caller);
+      throw exception;
     }
-    return parseInt(rndm.join(""));
-  },
-
-  getAddressbook: function DAPI_getAddressbook()
-  {
     // TODO: whitelist urls before giving access to the addressbook
-    return Addressbook.getContactsObj();
+    let contacts = Addressbook.getContactsObj();
+    crypto.getAddressbook(contacts, aCallback, this.sandbox);
   },
 
-  encrypt: function DAPI_encrypt(aMsg, aPubKey)
+  /**
+   * Prompt the enduser to create a keypair
+   *
+   * @param function aCallback
+   *        This callback will run in the content sandbox when the operation
+   *        is complete
+   * @returns void
+   */
+  beginGenerateKeypair: function DA_beginGenerateKeypair(aCallback)
   {
-    if (!aPubKey) {
-      // we do not need a public key arg if we are encrypting our own data
-      if (!this.config.default.pubKey) {
-        throw new Error("Encryption credentials missing. (No pubKey found)" );
-      }
-      aPubKey = this.config.default.pubKey;
+    if (!(typeof aCallback == "function")) {
+      let exception =
+        new Components.Exception("First argument should be a function",
+                                 Cr.NS_ERROR_INVALID_ARG,
+                                 Components.stack.caller);
+      throw exception;
     }
-    if (!aMsg && !aPubKey) {
-      throw new Error("Missing Arguments: aMsg and aPubKey are required");
-    }
-
-    var randomSymKey = cryptoSvc.generateRandomKey();
-    var aIV = cryptoSvc.generateRandomIV();
-    var cryptoMessage = cryptoSvc.encrypt(aMsg, randomSymKey, aIV);
-    var wrappedKey = cryptoSvc.wrapSymmetricKey(randomSymKey, aPubKey);
-    return { content: cryptoMessage, pubKey: aPubKey, wrappedKey: wrappedKey, iv: aIV };
+    // this is a prompt-driven routine.
+    // passphrase is typed in, confirmed, then the generation begins
+    crypto.beginGenerateKeypair(aCallback, this.sandbox);
   },
 
-  decrypt: function DAPI_decrypt(aMsg, aPassphrase)
+  /**
+   * A wrapper that calls DOMCryptMethods.encrypt()
+   *
+   * @param string aPlainText
+   *        A string that will be encrypted
+   * @param string aPublicKey
+   *        The public key of the recipient of the encrypted text
+   * @param function aCallback
+   *        This callback will run in the content sandbox when the operation
+   *        is complete
+   * @returns void
+   */
+  encrypt: function DA_encrypt(aPlainText, aPublicKey, aCallback)
   {
-    // aMsg is an object like this:
-    // { content: |ENCRYPTED MESSAGE CONTENT|,
-    //   wrappedKey: |SYMMETRIC WRAPPED KEY GENERATED AND RETURNED BY ENCRYPT()|,
-    //   iv: |VECTOR CREATED FOR THIS MESSAGE'S ENCRYPTION|,
-    //   pubKey: |PUBLIC KEY USED TO ENCRYPT THIS MESSGE|
-    // }
-    if (!this.config.default.privKey) {
-      throw new Error("Your encryption credentials are missing. (No privKey found)");
+    if (!(typeof aCallback == "function")) {
+      let exception =
+        new Components.Exception("Third argument should be a Function",
+                                 Cr.NS_ERROR_INVALID_ARG,
+                                 Components.stack.caller);
+      throw exception;
     }
-
-    var verify = cryptoSvc.verifyPassphrase(this.config.default.privKey,
-                                            aPassphrase,
-                                            this.config.default.salt,
-                                            this.config.default.iv);
-
-    var unwrappedKey = cryptoSvc.unwrapSymmetricKey(aMsg.wrappedKey,
-                                                    this.config.default.privKey,
-                                                    aPassphrase,
-                                                    this.config.default.salt,
-                                                    this.config.default.iv);
-
-    var decryptedMsg = cryptoSvc.decrypt(aMsg.content, unwrappedKey, aMsg.iv);
-
-    // get rid of the passphrase ASAP
-    delete aPassphrase;
-    // force garbage collection
-    Cu.forceGC();
-
-    return decryptedMsg;
+    if (!(typeof aPlainText == "string") || !(typeof aPublicKey == "string")) {
+      let exception =
+        new Components.Exception("First and second arguments should be Strings",
+                                 Cr.NS_ERROR_INVALID_ARG,
+                                 Components.stack.caller);
+      throw exception;
+    }
+    crypto.encrypt(aPlainText, aPublicKey, aCallback, this.sandbox);
   },
 
-  promptDecrypt: function DAPI_promptDecrypt(aMsg)
+  /**
+   * A wrapper that calls DOMCryptMethods.decrypt()
+   *
+   * @param object aCipherMessage
+   *        An object literal much like:
+   *        { content:    <ENCRYPTED_STRING>,
+   *          pubKey:     <RECIPIENT PUB_KEY>,
+   *          wrappedKey: <WRAPPED SYM_KEY>,
+   *          iv:         <INITIALIZATION VECTOR>
+   *        }
+   * @param function aCallback
+   *        This callback will run in the content sandbox when the operation
+   *        is complete
+   * @returns void
+   */
+  promptDecrypt: function DA_promptDecrypt(aCipherMessage, aCallback)
   {
-    // prompt for passphrase in a chrome context before decrypting message
-    let passphrase = {};
-    let prompt = promptSvc.promptPassword(this.window,
-                                          PROMPT_TITLE_DECRYPT,
-                                          PROMPT_TEXT_DECRYPT,
-                                          passphrase, null, {value: false});
-    if (passphrase.value) {
-      return this.decrypt(aMsg, passphrase.value);
+    if (!(typeof aCallback == "function")) {
+      let exception =
+        new Components.Exception("Second argument should be a Function",
+                                 Cr.NS_ERROR_INVALID_ARG,
+                                 Components.stack.caller);
+      throw exception;
     }
-    // Otherwise we should throw?
-    throw new Error("No passphrase entered.");
+    if (!(typeof aCipherMessage == "object")) {
+      let exception =
+        new Components.Exception("First argument should be a mozCipher Message Object",
+                                 Cr.NS_ERROR_INVALID_ARG,
+                                 Components.stack.caller);
+      throw exception;
+    }
+
+    crypto.promptDecrypt(aCipherMessage, aCallback, this.sandbox);
   },
 
-  getPubKey: function DAPI_getPubKey()
+  /**
+   * A wrapper that calls DOMCryptMethods.getPublicKey()
+   *
+   * @param function aCallback
+   *        This callback will run in the content sandbox when the operation
+   *        is complete
+   * @returns void
+   */
+  getPublicKey: function DA_getPublicKey(aCallback)
   {
-    return this.config.default.pubKey;
+    if (!(typeof aCallback == "function")) {
+      let exception =
+        new Components.Exception("First argument should be a Function",
+                                 Cr.NS_ERROR_INVALID_ARG,
+                                 Components.stack.caller);
+      throw exception;
+    }
+    crypto.getPublicKey(aCallback, this.sandbox);
   },
 
-  sign: function DAPI_sign(aMessage)
+  /**
+   * A wrapper that calls DOMCryptMethods.sign()
+   *
+   * @param string aMessage
+   *        The plaintext message before it is encrypted
+   * @param function aCallback
+   *        This callback will run in the content sandbox when the operation
+   *        is complete
+   * @returns void
+   */
+  sign: function DA_sign(aMessage, aCallback)
   {
-    // Sign a message
-    let passphrase = {};
-    let prompt = promptSvc.promptPassword(this.window,
-                                          PROMPT_TITLE_DECRYPT,
-                                          PROMPT_TEXT_DECRYPT,
-                                          passphrase, null, {value: false});
-    // TODO: verify passphrase
-    if (passphrase.value) {
-      var verify = cryptoSvc.verifyPassphrase(this.config.default.privKey,
-                                              passphrase.value,
-                                              this.config.default.salt,
-                                              this.config.default.iv);
-      // verifyPassphrase  will throw if the passphrase is not verified
+    if (!(typeof aMessage == "string")) {
+      let exception =
+        new Components.Exception("First argument should be a String",
+                                 Cr.NS_ERROR_INVALID_ARG,
+                                 Components.stack.caller);
+      throw exception;
+    }
 
-      // now we can sign the message
-      let privKey = this.config.default.privKey;
-      let iv = this.config.default.iv;
-      let salt = this.config.default.salt;
-      let hash = this.sha256(aMessage);
-      let sig = cryptoSvc.sign(privKey, iv, salt, passphrase.value, hash);
-      return sig;
+    if (!(typeof aCallback == "function")) {
+      let exception =
+        new Components.Exception("Second argument should be a Function",
+                                 Cr.NS_ERROR_INVALID_ARG,
+                                 Components.stack.caller);
+      throw exception;
     }
-    else {
-      throw new Error("You must enter a passphrase");
-    }
+    crypto.sign(aMessage, aCallback, this.sandbox);
   },
 
-  verify: function DAPI_verify(aSignature, aHash, aPublicKey)
+  /**
+   * A wrapper that calls DOMCryptMethods.verify()
+   *
+   * @param string aMessage
+   *        A plaintext decrypted message
+   * @param string aSignature
+   *        The signature of the encrypted message
+   * @param string aPublicKey
+   *        The recipient's public key
+   * @param function aCallback
+   *        This callback will run in the content sandbox when the operation
+   *        is complete
+   * @returns void
+   */
+  verify: function DA_verify(aMessage, aSignature, aPublicKey, aCallback)
   {
-    // verify a Signature
-    let results = cryptoSvc.verify(aPublicKey, aSignature, aHash);
-    if (results) {
-      return true;
+    if (!(typeof aMessage == "string")) {
+      let exception =
+        new Components.Exception("First argument (aMessage) should be a String",
+                                 Cr.NS_ERROR_INVALID_ARG,
+                                 Components.stack.caller);
+      throw exception;
     }
-    return false;
+
+    if (!(typeof aSignature == "string")) {
+      let exception =
+        new Components.Exception("Second argument (aSignature) should be a String",
+                                 Cr.NS_ERROR_INVALID_ARG,
+                                 Components.stack.caller);
+      throw exception;
+    }
+
+    if (!(typeof aPublicKey == "string")) {
+      let exception =
+        new Components.Exception("Third argument (aPublicKey) should be a String",
+                                 Cr.NS_ERROR_INVALID_ARG,
+                                 Components.stack.caller);
+      throw exception;
+    }
+
+    if (!(typeof aCallback == "function")) {
+      let exception =
+        new Components.Exception("Fourth argument should be a Function",
+                                 Cr.NS_ERROR_INVALID_ARG,
+                                 Components.stack.caller);
+      throw exception;
+    }
+    crypto.verify(aMessage, aSignature, aPublicKey, aCallback, this.sandbox);
   },
 
-  configurationFile: function DAPI_configFile()
+  /**
+   * A wrapper that calls DOMCryptMethods.verifyPassphrase()
+   *
+   * @param function aCallback
+   *        This callback will run in the content sandbox when the operation
+   *        is complete
+   * @returns void
+   */
+  verifyPassphrase: function DA_verifyPassphrase(aCallback)
   {
-    // get profile directory
-    let file = Cc["@mozilla.org/file/directory_service;1"].
-                 getService(Ci.nsIProperties).
-                 get("ProfD", Ci.nsIFile);
-    file.append(".domcrypt.json");
-
-    if (!file.exists()) {
-      file.create(Ci.nsIFile.NORMAL_FILE_TYPE, 0777);
+    if (!(typeof aCallback == "function")) {
+      let exception =
+        new Components.Exception("First argument should be a Function",
+                                 Cr.NS_ERROR_INVALID_ARG,
+                                 Components.stack.caller);
+      throw exception;
     }
-    return file;
+    crypto.verifyPassphrase(aCallback, this.sandbox);
   },
 
-  writeConfigurationToDisk: function DAPI_writeConfigurationToDisk(aConfigObj)
+  /**
+   * A wrapper that calls DOMCryptMethods.SHA256()
+   *
+   * @param string aPlainText
+   *        The plaintext string to be hashed
+   * @param function aCallback
+   *        This callback will run in the content sandbox when the operation
+   *        is complete
+   * @returns void
+   */
+  SHA256: function DA_SHA256(aPlainText, aCallback)
   {
-    if (!aConfigObj) {
-      throw new Error("aConfigObj is null");
+    if (!(typeof aPlainText == "string")) {
+      let exception =
+        new Components.Exception("First argument (aPlainText) should be a String",
+                                 Cr.NS_ERROR_INVALID_ARG,
+                                 Components.stack.caller);
+      throw exception;
     }
 
-    let data;
-
-    try {
-      if (typeof aConfigObj == "object") {
-        // convert aConfigObj to JSON string
-        data = JSON.stringify(aConfigObj);
-      }
-      else {
-        data = aConfigObj;
-      }
-
-      let foStream = Cc["@mozilla.org/network/file-output-stream;1"].
-                       createInstance(Ci.nsIFileOutputStream);
-      let file = this.configurationFile();
-
-      // use 0x02 | 0x10 to open file for appending.
-      foStream.init(file, 0x02 | 0x08 | 0x20, 0666, 0);
-
-      let converter = Cc["@mozilla.org/intl/converter-output-stream;1"].
-                        createInstance(Ci.nsIConverterOutputStream);
-      converter.init(foStream, "UTF-8", 0, 0);
-      converter.writeString(data);
-      converter.close();
+    if (!(typeof aCallback == "function")) {
+      let exception =
+        new Components.Exception("Second argument should be a Function",
+                                 Cr.NS_ERROR_INVALID_ARG,
+                                 Components.stack.caller);
+      throw exception;
     }
-    catch (ex) {
-      log(ex);
-      log(ex.stack);
-    }
+    crypto.SHA256(aPlainText, aCallback, this.sandbox);
   },
-
-  deleteConfiguration: function DAPI_deleteConfiguration()
-  {
-    this.writeConfigurationToDisk(BLANK_CONFIG_OBJECT);
-  },
-
-  config: BLANK_CONFIG_OBJECT,
-
-  getConfigObj: function DAPI_getConfigObj()
-  {
-    let newConfig = false;
-    try {
-      // get file, convert to JSON
-      let file = this.configurationFile();
-      try {
-        var str = this.getFileAsString(file);
-      }
-      catch (ex) {
-        newConfig = true;
-        var str = BLANK_CONFIG_OBJECT_STR;
-      }
-      let json = JSON.parse(str);
-      this.config = json;
-      this.pubKey = this.config.default.pubKey;
-      if (newConfig) {
-        this.writeConfigurationToDisk(this.config);
-      }
-    }
-    catch (ex) {
-      log(ex);
-      log(ex.stack);
-    }
-    return this.config;
-  },
-
-  getFileAsString: function DAPI_getFileAsString(aFile)
-  {
-    if (!aFile.exists()) {
-      throw new Error("File does not exist");
-    }
-    // read file data
-    let data = "";
-    let fstream = Cc["@mozilla.org/network/file-input-stream;1"].
-                    createInstance(Ci.nsIFileInputStream);
-    let cstream = Cc["@mozilla.org/intl/converter-input-stream;1"].
-                    createInstance(Ci.nsIConverterInputStream);
-    fstream.init(aFile, -1, 0, 0);
-    cstream.init(fstream, "UTF-8", 0, 0);
-
-    let (str = {}) {
-      let read = 0;
-      do {
-        read = cstream.readString(0xffffffff, str);
-        data += str.value;
-      } while (read != 0);
-    };
-    cstream.close();
-    return data;
-  },
-
-  beginGenerateKeyPair: function DAPI_beginGenerateKeyPair()
-  {
-    let passphrase = {};
-    let prompt = promptSvc.promptPassword(this.window,
-                                          PROMPT_TITLE_GENERATE,
-                                          PROMPT_TEXT_GENERATE,
-                                          passphrase, null, {value: false});
-    if (prompt && passphrase.value) {
-      let passphraseConfirm = {};
-      let prompt = promptSvc.promptPassword(this.window,
-                                            PROMPT_TITLE_GENERATE_CONFIRM,
-                                            PROMPT_TEXT_GENERATE_CONFIRM,
-                                            passphraseConfirm,
-                                            null, {value: false});
-      if (prompt && passphraseConfirm.value &&
-          (passphraseConfirm.value == passphrase.value)) {
-        this.generateKeyPair(passphrase.value);
-      }
-      else {
-        promptSvc.alert(this.window, PROMPT_TITLE_PASSPHRASE_NOT_CONFIRMED,
-                        PROMPT_TEXT_PASSPHRASE_NOT_CONFIRMED);
-      }
-    }
-  },
-
-  generateKeyPair: function DAPI_generateKeyPair(passphrase)
-  {
-    var pubOut = {};
-    var privOut = {};
-    cryptoSvc.generateKeypair(passphrase, this.salt, this.iv,
-                              pubOut, privOut);
-    this.pubKey = pubOut.value;
-
-    // TODO: make a backup of the existing config if it has a timestamp
-    let previousConfigStr = JSON.stringify(this.config);
-
-    // set memory config data from generateKeypair
-    this.config.default.pubKey = pubOut.value;
-    this.config.default.privKey = privOut.value;
-    this.config.default.created = Date.now();
-    this.config.default.hashedPassphrase = this.sha256(passphrase);
-    this.config.default.iv = this.iv;
-    this.config.default.salt = this.salt;
-
-    // make a string of the config
-    let strConfig = JSON.stringify(this.config);
-
-    // write the new config to disk
-    this.writeConfigurationToDisk(strConfig);
-
-    // TODO: create an event  that can be listened for when the keyPair
-    // is done being generated
-    try {
-      notify("Key Pair Generated", "");
-    }
-    catch (ex) {
-      log(ex);
-      log(ex.stack);
-      Cu.reportError("Key Pair Generated - notification could not be sent");
-    }
-  },
-
-  get setTimeout() {
-    return this.window.ownerDocument.defaultView.setTimeout;
-  },
-
-  randomSymKey: function DAPI_randomSymKey(pubKey)
-  {
-    if(!pubKey){
-      throw new Error("Public Key was not provided (to randomSymKey())");
-    }
-    return cryptoSvc.generateRandomKey();
-  },
-
-  sha256: function Weave_sha2(string) {
-    // stolen from weave/util.js
-    let converter = Cc["@mozilla.org/intl/scriptableunicodeconverter"].
-                      createInstance(Ci.nsIScriptableUnicodeConverter);
-    converter.charset = "UTF-8";
-
-    let hasher = Cc["@mozilla.org/security/hash;1"]
-                   .createInstance(Ci.nsICryptoHash);
-    hasher.init(hasher.SHA256);
-
-    let data = converter.convertToByteArray(string, {});
-    hasher.update(data, data.length);
-    let rawHash = hasher.finish(false);
-
-    // return the two-digit hexadecimal code for a byte
-    function toHexString(charCode) {
-      return ("0" + charCode.toString(16)).slice(-2);
-    }
-
-    let hash = [toHexString(rawHash.charCodeAt(i)) for (i in rawHash)].join("");
-    return hash;
-  }
 };
 
-let NSGetFactory = XPCOMUtils.generateNSGetFactory([DOMCryptAPI]);
+
+var NSGetFactory = XPCOMUtils.generateNSGetFactory([DOMCryptAPI]);
+

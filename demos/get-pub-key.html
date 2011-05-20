@@ -49,7 +49,7 @@
     </div>
     <div>
       <h2>Getting the addressbook entries</h2>
-      <pre>window.crypt.getAddressbook(); // Returns the Addressbook Object[1]</pre>
+      <pre>window.pk.mozCipher.getAddressbook(function callback (addressbook){});</pre>
       <h3><button onClick="getAddressbook();">Get Addressbook</button></h3>
       <pre id="addressbook-data"></pre>
       <div class="footnote">[1] An approval and whitelist process for pages that request the public key and addressbook is planned </div>

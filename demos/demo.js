@@ -3,7 +3,7 @@
 window.addEventListener("load", function (){
   // if the user already has a key pair - fetch the public key to display on this page
   try {
-    document.getElementById("pubKey").innerHTML = window.crypt.getPubKey();
+    document.getElementById("pubKey").innerHTML = window.mozCipher.pk.getPublicKey();
   }
   catch (ex) {
     // noop
@@ -12,58 +12,68 @@ window.addEventListener("load", function (){
 
 function getPubKey()
 {
-  document.getElementById("pubKey").innerHTML = window.crypt.getPubKey();
+  window.mozCipher.pk.getPublicKey(function (aPubKey){
+    document.getElementById("pubKey").innerHTML = aPubKey;
+  });
 }
 
 function generate()
 {
   // begins the key pair generation routine, user is prompted by chrome-privileged passphrase prompt
-  window.crypt.generateKeyPair();
-  window.setTimeout(function(){
-    document.getElementById("pubKey").innerHTML = window.crypt.getPubKey();
-    }
-    , 2000);
+  window.mozCipher.pk.generateKeypair(function(aPubKey){
+    document.getElementById("pubKey").innerHTML = aPubKey;
+  });
 }
 
 function encrypt()
 {
   // encrypts the message with the current user's public key - this demo is quite simplistic in that there is only one user
   var msg = document.getElementById("plaintext").value;
-
-  document.currentMessage = window.crypt.encrypt(msg);
-  document.getElementById("encrypted").innerHTML = document.currentMessage.content;
+  var pubKey = document.getElementById("pubKey").innerHTML;
+  window.mozCipher.pk.encrypt(msg, pubKey,
+    function (aCipherMessage) {
+      document.currentMessage = aCipherMessage;
+      document.getElementById("encrypted").innerHTML = aCipherMessage.content;
+    });
 }
 
 function decrypt()
 {
-  // decrypt -  user is prompted by chrome-privileged prompt to collect the passphrase, which is garbage collected right away
-  var decrypted =
-    window.crypt.promptDecrypt(document.currentMessage);
-  document.getElementById("decrypted").innerHTML = decrypted;
+  window.mozCipher.pk.decrypt(document.currentMessage, function (aPlainText){
+    document.getElementById("decrypted").innerHTML = aPlainText;
+  });
 }
 
 function signMessage()
 {
   var msg = document.getElementById("message").textContent;
-  var sig = window.crypt.sign(msg);
-  document.getElementById("results").textContent = sig;
+  window.mozCipher.pk.sign(msg, function (aSig){
+    document.getElementById("results").textContent = aSig;
+  });
 }
 
 function verifySignature()
 {
   var msgTxt = document.getElementById("message").innerHTML;
-  var msgHash = window.crypt.makeHash(msgTxt);
   var sig = document.getElementById("results").innerHTML;
   if (sig) {
-    var key = window.crypt.getPubKey();
-    var results = window.crypt.verify(sig, msgHash, key);
-    if (results) {
-      document.getElementById("results-verify").innerHTML = results;
-      alert("The message signature has been verified as authentic");
-    }
-    else {
-      alert("ERROR: The message signature has NOT been verified as authentic");
-    }
+    console.log(sig);
+    window.mozCipher.pk.getPublicKey(function callback (aPubKey){
+      if (!aPubKey) {
+        throw new Error("Verify Signature: Could not get the publicKey");
+      }
+      console.log(aPubKey);
+      window.mozCipher.pk.verify(msgTxt, sig, aPubKey, function verifyCallback(aVer){
+        console.log(aVer);
+        if (aVer) {
+          document.getElementById("results-verify").innerHTML = aVer.toString();
+          alert("The message signature has been verified as authentic");
+        }
+        else {
+          alert("ERROR: The message signature has NOT been verified as authentic");
+        }
+      });
+    });
   }
   else {
     document.getElementById("results-verify").innerHTML = "You must sign the message first";
