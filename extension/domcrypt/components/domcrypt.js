@@ -50,6 +50,7 @@ function log(aMessage) {
 
 XPCOMUtils.defineLazyGetter(this, "crypto", function (){
   Cu.import("resource://domcrypt/DOMCryptMethods.jsm");
+
   return DOMCryptMethods;
 });
 
@@ -82,6 +83,8 @@ DOMCryptAPI.prototype = {
 
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIDOMGlobalPropertyInitializer,
                                          Ci.nsIObserver,]),
+
+  sandbox: null,
 
   /**
    * We must free the sandbox and window references every time an
@@ -126,6 +129,18 @@ DOMCryptAPI.prototype = {
     this.sandbox = Cu.Sandbox(this.window,
                               { sandboxPrototype: this.window, wantXrays: false });
 
+    // we need a xul window reference for the DOMCryptMethods
+    this.xulWindow = aWindow.QueryInterface(Ci.nsIDOMWindow)
+      .QueryInterface(Ci.nsIInterfaceRequestor)
+      .getInterface(Ci.nsIWebNavigation)
+      .QueryInterface(Ci.nsIDocShellTreeItem)
+      .rootTreeItem
+      .QueryInterface(Ci.nsIInterfaceRequestor)
+      .getInterface(Ci.nsIDOMWindow)
+      .QueryInterface(Ci.nsIDOMChromeWindow);
+
+    crypto.setXULWindow(this.xulWindow);
+
     Services.obs.addObserver(this, "inner-window-destroyed", false);
 
     let api = {
@@ -141,12 +156,20 @@ DOMCryptAPI.prototype = {
         getAddressbook: self.getAddressbook.bind(self),
       },
 
+      sym: {
+        generateKey: self.generateSymKey.bind(self),
+        wrapCipher: self.wrapCipher.bind(self),
+        encrypt: self.symEncrypt.bind(self),
+        decrypt: self.symDecrypt.bind(self),
+      },
+
       hash: {
         SHA256: self.SHA256.bind(self)
       },
 
       __exposedProps__: {
         pk: "r",
+        sym: "r",
         hash: "r",
       },
     };
@@ -166,6 +189,86 @@ DOMCryptAPI.prototype = {
     // TODO: whitelist urls before giving access to the addressbook
     let contacts = Addressbook.getContactsObj();
     crypto.getAddressbook(contacts, aCallback, this.sandbox);
+  },
+
+  // Symmetric API
+
+  generateSymKey: function DA_generateSymKey(aCallback, aPublicKey)
+  {
+    if (!(typeof aCallback == "function")) {
+      let exception =
+        new Components.Exception("First argument should be a function",
+                                 Cr.NS_ERROR_INVALID_ARG,
+                                 Components.stack.caller);
+      throw exception;
+    }
+
+    crypto.generateSymKey(aCallback, aPublicKey, this.sandbox);
+  },
+
+  /**
+   * re-wrap the symmetric key inside a CryptoObject to allow other
+   * keypairs access to the encrypted content
+   * @param object aCipherObject
+   * @param string aPublicKey
+   * @param function aCallback
+   * @returns void
+   */
+  wrapCipher: function DA_wrapCipher(aCipherObject, aPublicKey, aCallback)
+  {
+    // unwrap, then re-wrap the cipher object's symmetric key with a new publicKey
+    if (!(typeof aCallback == "function")) {
+      let exception =
+        new Components.Exception("First argument should be a function",
+                                 Cr.NS_ERROR_INVALID_ARG,
+                                 Components.stack.caller);
+      throw exception;
+    }
+
+    crypto.wrapCipher(aCipherObject, aPublicKey, aCallback, this.sandbox);
+  },
+
+  symEncrypt: function DA_symEncrypt(aPlainText, aPubKey, aCallback)
+  {
+    // XXXddahl: make aPubKey optional: use wrapCipher to allow additional
+    // keypairs access to the encrypted content
+    if (!(typeof aCallback == "function")) {
+      let exception =
+        new Components.Exception("Third argument should be a function",
+                                 Cr.NS_ERROR_INVALID_ARG,
+                                 Components.stack.caller);
+      throw exception;
+    }
+
+    if (!(typeof aPlainText == "string") || !(typeof aPubKey == "string")) {
+      let exception =
+        new Components.Exception("First and second arguments should be Strings",
+                                 Cr.NS_ERROR_INVALID_ARG,
+                                 Components.stack.caller);
+      throw exception;
+    }
+
+    crypto.symEncrypt(aPlainText, aPubKey, aCallback, this.sandbox);
+  },
+
+  symDecrypt: function DA_symDecrypt(aCipherObject, aCallback)
+  {
+    if (!(typeof aCallback == "function")) {
+      let exception =
+        new Components.Exception("Second argument should be a function",
+                                 Cr.NS_ERROR_INVALID_ARG,
+                                 Components.stack.caller);
+      throw exception;
+    }
+
+    if (!(typeof aCipherObject == "object")) {
+      let exception =
+        new Components.Exception("First argument should be a CipherObject",
+                                 Cr.NS_ERROR_INVALID_ARG,
+                                 Components.stack.caller);
+      throw exception;
+    }
+    crypto.symDecrypt(aCipherObject, aCallback, this.sandbox);
   },
 
   /**

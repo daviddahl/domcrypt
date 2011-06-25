@@ -1,0 +1,47 @@
+<!DOCTYPE HTML>
+<html dir="ltr" xml:lang="en-US" lang="en-US"><head>
+    <title>DOMCrypt API test page</title>
+    <script type="text/javascript" src="test-domcrypt.js"></script>
+    <style>
+      div {margin: 1em;}
+      h2 {color: blue; font-weight: normal;}
+    </style>
+  </head>
+  <body>
+    <button onclick="testDOMCrypt();">Run Tests</button>
+    <h1>DOMCrypt PublicKey API Tests</h1>
+    <h2>generateKeypair() results: a public key, with a full keypair saved to disk</h2>
+    <div id="results"></div>
+    <h2>getPublicKey() results: a public key</h2>
+    <div id="results-pub-key"></div>
+    <h2>encrypt() results: an encrypted blob of data</h2>
+    <div id="results-encrypt"></div>
+    <h2>decrypt() results: a decrypted string</h2>
+    <div id="results-decrypt"></div>
+    <h2>sign() results: a signature</h2>
+    <div id="results-sign"></div>
+    <h2>verify() results: verification</h2>
+    <div id="results-verify"></div>
+    <h2>SHA256() results: a hash</h2>
+    <div id="results-sha256"></div>
+
+    <h1>DOMCrypt Symmetric API Tests</h1>
+    <h2>sym.generateKey() results</h2>
+    <div id="sym-generate-key-results"></div>
+    <h2>sym.encrypt() results</h2>
+    <div id="sym-encrypt-results"></div>
+    <h2>sym.decrypt() results</h2>
+    <div id="sym-decrypt-results"></div>
+
+    <hr />
+    <h1>Encrypt text</h1>
+    <textarea id="to-encrypt" cols="80" rows="10"></textarea>
+    <h3><button onclick="startEncrypt();">Encrypt</button></h3>
+    <div id="encrypt-seconds"></div>
+    <div id="decrypt-seconds"></div>
+    <hr />
+    <h1>Decrypt text</h1>
+    <h3><button onclick="decryptText();">Decrypt</button></h3>
+    <div id="encrypted"></div>
+  </body>
+</html>

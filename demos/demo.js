@@ -79,3 +79,40 @@ function verifySignature()
     document.getElementById("results-verify").innerHTML = "You must sign the message first";
   }
 }
+
+function symEncrypt()
+{
+  mozCipher.pk.getPublicKey(function (aPubKey){
+  console.log("public key: ", aPubKey);
+  console.log("The public key is used to wrap the symmetric key after the data is encrypted");
+  var text = "It was a bright cold day in April";
+  console.log("encrypting: ", text);
+  mozCipher.sym.encrypt(text,
+                        aPubKey,
+                        function (cipherObj){
+                          document.symEncryptResults = { pubKey: aPubKey,
+                                                         cipherObj: cipherObj };
+                          console.log("cipher text: ");
+                          console.log(cipherObj.cipherText);
+                          console.log("ok, time to decrypt");
+                          symDecrypt(cipherObj);
+                        });
+  });
+}
+
+function symDecrypt(aCipherObject)
+{
+  var cipherObj;
+  if (aCipherObject) {
+    cipherObj = aCipherObject;
+  }
+  else {
+    cipherObj = document.symEncryptResults.cipherObj;
+  }
+  console.log("decrypting data...");
+  mozCipher.sym.decrypt(cipherObj,
+                        function (plainText){
+                          console.log("plain text: ");
+                          console.log(plainText);
+                        });
+}

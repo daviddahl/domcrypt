@@ -36,7 +36,9 @@
       <h3>Public key</h3>
       <div class="key" id="pubKey">...</div>
     </div>
-
+    <div>
+      <button id="sym-test" onclick="symEncrypt();">Symmetric Crypto Test</button>
+    </div>
     <div id="encrypt">
       <h2>2. Encrypt the message</h2>
       <textarea id="plaintext" rows="3" cols="50">This is a plaintext message.</textarea> <button onclick="encrypt();">Encrypt</button>
@@ -58,7 +60,6 @@
         <li>JSON data persistence for a user's default encryption credentials - not accessible to the DOM or content JS (only the Public Key is, of course.)</li>
       </ul>
     </div>
-
     <div id="next">
       <h2>Next steps</h2>
       <ul>

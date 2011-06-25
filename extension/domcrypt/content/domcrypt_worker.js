@@ -67,6 +67,9 @@ const ENCRYPT           = "encrypt";
 const DECRYPT           = "decrypt";
 const SIGN              = "sign";
 const VERIFY            = "verify";
+const GENERATE_SYM_KEY  = "generateSymKey";
+const SYM_ENCRYPT       = "symEncrypt";
+const SYM_DECRYPT       = "symDecrypt";
 const VERIFY_PASSPHRASE = "verifyPassphrase";
 const SHUTDOWN          = "shutdown";
 const INITIALIZE        = "init";
@@ -111,6 +114,35 @@ onmessage = function domcryptWorkerOnMessage(aEvent)
                                        aEvent.data.pubKey);
 
     postMessage({ verification: result, action: "messageVerified" });
+    break;
+  case GENERATE_SYM_KEY:
+    result = WeaveCryptoWrapper.generateSymKey(aEvent.data.pubKey);
+    postMessage({ wrappedKeyObject: { wrappedKey: result.wrappedKey,
+                                      pubKey: result.pubKey,
+                                      iv: result.iv },
+                  action: "symKeyGenerated"
+                });
+    break;
+  case SYM_ENCRYPT:
+    result =
+      WeaveCryptoWrapper.symEncrypt(aEvent.data.plainText, aEvent.data.pubKey);
+    postMessage({ cipherObject: { cipherText: result.cipherText,
+                                  wrappedKey: result.wrappedKey ,
+                                  pubKey: aEvent.data.pubKey,
+                                  iv: result.iv },
+                  action: "symEncrypted"
+                });
+    break;
+  case SYM_DECRYPT:
+    result =
+      WeaveCryptoWrapper.symDecrypt(aEvent.data.cipherObject,
+                                    aEvent.data.privKey,
+                                    aEvent.data.passphrase,
+                                    aEvent.data.salt,
+                                    aEvent.data.iv);
+
+    postMessage({ plainText: result, action: "symDecrypted" });
+
     break;
   case VERIFY_PASSPHRASE:
     result = WeaveCryptoWrapper.verifyPassphrase(aEvent.data.privKey,
@@ -257,16 +289,18 @@ var WeaveCryptoWrapper = {
       var decryptedMsg = WeaveCrypto.decrypt(aCipherMessage.content,
                                              unwrappedKey, aCipherMessage.iv);
 
-      // get rid of the passphrase ASAP
-      delete aPassphrase;
-      delete aPrivateKey;
-
       return decryptedMsg;
     }
     catch (ex) {
       log(ex);
       log(ex.stack);
-      throw ex;
+      Cu.reporterror(ex);
+      throw(ex);
+    }
+    finally {
+      // get rid of the passphrase
+      delete aPassphrase;
+      delete aPrivateKey;
     }
   },
 
@@ -288,20 +322,21 @@ var WeaveCryptoWrapper = {
    */
   sign: function WCW_sign(aHash, aPassphrase, aPrivateKey, aIV, aSalt)
   {
-    let signature;
+    var signature;
     try {
       signature = WeaveCrypto.sign(aPrivateKey, aIV, aSalt, aPassphrase, aHash);
-      delete aPrivateKey;
-      delete aPassphrase;
-      delete aIV;
-      delete aSalt;
-
       return signature;
     }
     catch (ex) {
       postMessage({ action: "error", method: "sign", error: ex, notify: true });
-      // throw so the error console is notified
+      Cu.reportError(ex);
       throw ex;
+    }
+    finally {
+      delete aPrivateKey;
+      delete aPassphrase;
+      delete aIV;
+      delete aSalt;
     }
   },
 
@@ -330,6 +365,68 @@ var WeaveCryptoWrapper = {
       log(ex);
       log(ex.stack);
       throw ex;
+    }
+  },
+
+  // XXXddahl: perhaps we need a 're-wrap sym key' method to pass the key and data along?
+
+  generateSymKey: function WCW_generateSymKey(aPublicKey)
+  {
+    var randomSymKey = WeaveCrypto.generateRandomKey();
+    var IV = WeaveCrypto.generateRandomIV();
+
+    // wrap the symkey
+    var wrappedKey = WeaveCrypto.wrapSymmetricKey(randomSymKey, aPublicKey);
+    return { wrappedKey: wrappedKey, iv: IV, pubKey: aPublicKey };
+  },
+
+  symEncrypt: function WCW_symEncrypt(aPlainText, aPublicKey)
+  {
+    // create a randomSymKey
+    var randomSymKey = WeaveCrypto.generateRandomKey();
+    var IV = WeaveCrypto.generateRandomIV();
+
+    // encrypt
+    var cryptoMessage = WeaveCrypto.encrypt(aPlainText, randomSymKey, IV);
+
+    // wrap the symkey
+    var wrappedKey = WeaveCrypto.wrapSymmetricKey(randomSymKey, aPublicKey);
+
+    // return the cipherObject
+    return { cipherText: cryptoMessage, wrappedKey: wrappedKey, iv: IV, pubKey: aPublicKey };
+  },
+
+  symDecrypt:
+  function WCW_symDecrypt(aCipherObject, aPrivateKey, aPassphrase, aSalt, aIV)
+  {
+    // decrypt symmetric-encrypted data - need the privKey
+    try {
+      var verify = WeaveCrypto.verifyPassphrase(aPrivateKey,
+                                                aPassphrase,
+                                                aSalt,
+                                                aIV);
+
+      var unwrappedKey = WeaveCrypto.unwrapSymmetricKey(aCipherObject.wrappedKey,
+                                                        aPrivateKey,
+                                                        aPassphrase,
+                                                        aSalt,
+                                                        aIV);
+
+      var decryptedMsg = WeaveCrypto.decrypt(aCipherObject.cipherText,
+                                             unwrappedKey, aCipherObject.iv);
+
+      return decryptedMsg;
+    }
+    catch (ex) {
+      log(ex);
+      log(ex.stack);
+      Cu.reportError(ex);
+      throw(ex);
+    }
+    finally {
+      // get rid of the passphrase, etc
+      delete aPassphrase;
+      delete aPrivateKey;
     }
   },
 
@@ -806,12 +903,13 @@ var WeaveCrypto = {
     let outputBuffer = new ctypes.ArrayType(ctypes.unsigned_char, input.length)();
 
     outputBuffer = this._commonCrypt(input, outputBuffer, symmetricKey, iv, this.nss.CKA_DECRYPT);
-
+    this.log("outputBuffer: " + outputBuffer);
     // outputBuffer contains UTF-8 data, let js-ctypes autoconvert that to a JS string.
     // XXX Bug 573842: wrap the string from ctypes to get a new string, so
     // we don't hit bug 573841.
     // XXXddahl: this may not be needed any longer as bug 573841 is fixed
     return "" + outputBuffer.readString() + "";
+    // return outputBuffer.readString();
   },
 
 
@@ -819,8 +917,9 @@ var WeaveCrypto = {
     this.log("_commonCrypt() called");
     // Get rid of the base64 encoding and convert to SECItems.
     let keyItem = this.makeSECItem(symmetricKey, true);
+    this.log("keyItem: " + keyItem);
     let ivItem  = this.makeSECItem(iv, true);
-
+    this.log("ivItem: " + ivItem);
     // Determine which (padded) PKCS#11 mechanism to use.
     // EG: AES_128_CBC --> CKM_AES_CBC --> CKM_AES_CBC_PAD
     let mechanism = this.nss.PK11_AlgtagToMechanism(this.algorithm);
@@ -865,6 +964,7 @@ var WeaveCrypto = {
 
       actualOutputSize += tmpOutputSize2.value;
       let newOutput = ctypes.cast(output, ctypes.unsigned_char.array(actualOutputSize));
+      this.log(newOutput);
       return newOutput;
     } catch (e) {
       this.log("_commonCrypt: failed: " + e);

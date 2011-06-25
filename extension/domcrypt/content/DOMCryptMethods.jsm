@@ -156,14 +156,17 @@ XPCOMUtils.defineLazyGetter(this, "worker", function (){
   return workerFactory.newChromeWorker("domcrypt_worker.js");
 });
 
-const KEYPAIR_GENERATED = "keypairGenerated";
-const DATA_ENCRYPTED = "dataEncrypted";
-const DATA_DECRYPTED = "dataDecrypted";
-const MESSAGE_SIGNED = "messageSigned";
-const MESSAGE_VERIFIED = "messageVerified";
-const SHA256_COMPLETE = "SHA256Complete";
+const KEYPAIR_GENERATED   = "keypairGenerated";
+const DATA_ENCRYPTED      = "dataEncrypted";
+const DATA_DECRYPTED      = "dataDecrypted";
+const MESSAGE_SIGNED      = "messageSigned";
+const MESSAGE_VERIFIED    = "messageVerified";
+const SYM_KEY_GENERATED   = "symKeyGenerated";
+const SYM_ENCRYPTED       = "symEncrypted";
+const SYM_DECRYPTED       = "symDecrypted";
+const SHA256_COMPLETE     = "SHA256Complete";
 const PASSPHRASE_VERIFIED = "passphraseVerified";
-const WORKER_ERROR = "error";
+const WORKER_ERROR        = "error";
 
 worker.onmessage = function DCM_worker_onmessage(aEvent) {
   switch (aEvent.data.action) {
@@ -181,6 +184,15 @@ worker.onmessage = function DCM_worker_onmessage(aEvent) {
     break;
   case MESSAGE_VERIFIED:
     Callbacks.handleVerify(aEvent.data.verification);
+    break;
+  case SYM_KEY_GENERATED:
+    Callbacks.handleGenerateSymKey(aEvent.data.wrappedKeyObject);
+    break;
+  case SYM_ENCRYPTED:
+    Callbacks.handleSymEncrypt(aEvent.data.cipherObject);
+    break;
+  case SYM_DECRYPTED:
+    Callbacks.handleSymDecrypt(aEvent.data.plainText);
     break;
   case SHA256_COMPLETE:
     Callbacks.handleSHA256(aEvent.data.hashedString);
@@ -207,6 +219,9 @@ const DECRYPT           = "decrypt";
 const SIGN              = "sign";
 const VERIFY            = "verify";
 const VERIFY_PASSPHRASE = "verifyPassphrase";
+const GENERATE_SYM_KEY  = "generateSymKey";
+const SYM_ENCRYPT       = "symEncrypt";
+const SYM_DECRYPT       = "symDecrypt";
 const GET_PUBLIC_KEY    = "getPublicKey";
 const SHA256            = "SHA256";
 const GET_ADDRESSBOOK   = "getAddressbook";
@@ -239,6 +254,13 @@ const INITIALIZE_WORKER = "init";
  */
 var DOMCryptMethods = {
 
+  xullWindow: null,
+
+  setXULWindow: function DCM_setXULWindow(aWindow)
+  {
+    this.xulWindow = aWindow;
+  },
+
   /**
    * The config object that is created by reading the contents of
    * <profile>/.mozCipher.json
@@ -270,6 +292,7 @@ var DOMCryptMethods = {
     worker.postMessage({ action: "shutdown" });
 
     this.sandbox = null;
+    this.xulWindow = null;
 
     for (let prop in Callbacks) {
       Callbacks[prop].callback = null;
@@ -442,7 +465,7 @@ var DOMCryptMethods = {
     // accept the passphrase and store it in memory - encrypted via SDR
     // remember the passphrase for 1 hour
     let passphrase = {};
-    let prompt = promptSvc.promptPassword(this.sandbox.window,
+    let prompt = promptSvc.promptPassword(this.xulWindow,
                                           getStr("enterPassphraseTitle"),
                                           getStr("enterPassphraseText"),
                                           passphrase, null, { value: false });
@@ -568,6 +591,60 @@ var DOMCryptMethods = {
                          hash: hash,
                          signature: aSignature,
                          pubKey: aPublicKey
+                       });
+  },
+
+  generateSymKey: function DCM_generateSymKey(aCallback, aPublicKey, aSandbox)
+  {
+    Callbacks.register(GENERATE_SYM_KEY, aCallback, aSandbox);
+
+    worker.postMessage({ action: GENERATE_SYM_KEY,
+                         pubKey: aPublicKey
+                       });
+  },
+
+  wrapCipher: function DCM_wrapCipher(aCipherObject, aPublicKey, aCallback, aSandbox)
+  {
+    // unwrap then re-wrap the symmetric key inside aCipherObject, return a new
+    // cipherObject that can unlocked by another keypair
+    
+  },
+
+  /**
+   * SymEncrypt (symmetric)
+   * @param string aPlaintext
+   * @param string aPublicKey
+   * @param function aCallback
+   * @param sandbox aSandbox
+   * @returns void
+   */
+  symEncrypt: function DCM_SymEncrypt(aPlainText, aPublicKey, aCallback, aSandbox)
+  {
+    Callbacks.register(SYM_ENCRYPT, aCallback, aSandbox);
+
+    worker.postMessage({ action: SYM_ENCRYPT,
+                         plainText: aPlainText,
+                         pubKey: aPublicKey
+                       });
+  },
+
+  symDecrypt:
+  function DCM_SymDecrypt(aCipherObject, aCallback, aSandbox)
+  {
+    var passphrase = this.passphrase; // this getter will throw if nothing entered
+
+    var  userIV = secretDecoderRing.decryptString(this.config.default.iv);
+    var userSalt = secretDecoderRing.decryptString(this.config.default.salt);
+    var userPrivKey = this.config.default.privKey;
+
+    Callbacks.register(SYM_DECRYPT, aCallback, aSandbox);
+
+    worker.postMessage({ action: SYM_DECRYPT,
+                         cipherObject: aCipherObject,
+                         iv: userIV,
+                         salt: userSalt,
+                         privKey: userPrivKey,
+                         passphrase: passphrase
                        });
   },
 
@@ -710,6 +787,12 @@ GenerateCallbackObject.prototype = {
   verify: { callback: null, sandbox: null },
 
   verifyPassphrase: { callback: null, sandbox: null },
+
+  generateSymKey: { callback: null, sandbox: null },
+
+  symEncrypt: { callback: null, sandbox: null },
+
+  symDecrypt: { callback: null, sandbox: null },
 
   SHA256: { callback: null, sandbox: null },
 
@@ -939,6 +1022,104 @@ GenerateCallbackObject.prototype = {
     let sandbox = this.verify.sandbox;
     sandbox.importFunction(callback, "verifyCallback");
     Cu.evalInSandbox("verifyCallback();",
+                     sandbox, "1.8", "DOMCrypt", 1);
+  },
+
+  /**
+   * Executes the generateSymKey callback function in the sandbox
+   *
+   * @param boolean aWrappedSymKey
+   * @returns void
+   */
+  makeGenerateSymKeyCallback:
+  function GCO_makeGenerateSymKeyCallback(aWrappedSymKeyObj)
+  {
+    let self = this;
+    let callback = function genSymKey_callback()
+                   {
+                     self.generateSymKey.callback(aWrappedSymKeyObj);
+                   };
+    return callback;
+  },
+
+  /**
+   * Executes the generateSymKey callback function in the sandbox
+   *
+   * @param string aWrappedSymKey
+   * @returns void
+   */
+  handleGenerateSymKey: function GCO_handleGenerateSymKey(aWrappedSymKeyObj)
+  {
+    let callback = this.makeGenerateSymKeyCallback(aWrappedSymKeyObj);
+    let sandbox = this.generateSymKey.sandbox;
+    sandbox.importFunction(callback, "generateSymKeyCallback");
+    Cu.evalInSandbox("generateSymKeyCallback();",
+                     sandbox, "1.8", "DOMCrypt", 1);
+  },
+
+  /**
+   * Wraps the SymEncrypt callback function in the sandbox
+   *
+   * @param object aCipherObject
+   * @returns void
+   */
+  makeSymEncryptCallback:
+  function GCO_makeSymEncryptCallback(aCipherObject)
+  {
+    let self = this;
+    let callback = function makeSymEncrypt_callback()
+                   {
+                     self.symEncrypt.callback(aCipherObject);
+                   };
+    return callback;
+  },
+
+  /**
+   * Executes the SymEncrypt callback function in the sandbox
+   *
+   * @param object aCipherObject
+   * @returns void
+   */
+  handleSymEncrypt: function GCO_handleSymEncryptCallback(aCipherObject)
+  {
+    let callback = this.makeSymEncryptCallback(aCipherObject);
+    let sandbox = this.symEncrypt.sandbox;
+    sandbox.importFunction(callback, "symEncryptCallback");
+    Cu.evalInSandbox("symEncryptCallback();",
+                     sandbox, "1.8", "DOMCrypt", 1);
+  },
+
+
+
+  /**
+   * Wraps the SymDecrypt callback function in the sandbox
+   *
+   * @param string aPlainText
+   * @returns void
+   */
+  makeSymDecryptCallback:
+  function GCO_makeSymDecryptCallback(aPlainText)
+  {
+    let self = this;
+    let callback = function makeSymDecrypt_callback()
+                   {
+                     self.symDecrypt.callback(aPlainText);
+                   };
+    return callback;
+  },
+
+  /**
+   * Executes the SymDecrypt callback function in the sandbox
+   *
+   * @param string aPlainText
+   * @returns void
+   */
+  handleSymDecrypt: function GCO_handleSymDecrypt(aPlainText)
+  {
+    let callback = this.makeSymDecryptCallback(aPlainText);
+    let sandbox = this.symDecrypt.sandbox;
+    sandbox.importFunction(callback, "symDecryptCallback");
+    Cu.evalInSandbox("symDecryptCallback();",
                      sandbox, "1.8", "DOMCrypt", 1);
   },
 
