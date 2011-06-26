@@ -158,7 +158,7 @@ DOMCryptAPI.prototype = {
 
       sym: {
         generateKey: self.generateSymKey.bind(self),
-        wrapCipher: self.wrapCipher.bind(self),
+        wrapKey: self.wrapKey.bind(self),
         encrypt: self.symEncrypt.bind(self),
         decrypt: self.symDecrypt.bind(self),
       },
@@ -195,6 +195,8 @@ DOMCryptAPI.prototype = {
 
   generateSymKey: function DA_generateSymKey(aCallback, aPublicKey)
   {
+    // XXXddahl: should maybe have a time created/modified and SHA256 hash of the
+    // public key for the utility of it
     if (!(typeof aCallback == "function")) {
       let exception =
         new Components.Exception("First argument should be a function",
@@ -203,35 +205,43 @@ DOMCryptAPI.prototype = {
       throw exception;
     }
 
-    crypto.generateSymKey(aCallback, aPublicKey, this.sandbox);
+    var pubKey;
+    if (typeof aPublicKey == "string") {
+      pubKey = aPublicKey;
+    }
+    else {
+      pubKey = null;
+    }
+    crypto.generateSymKey(aCallback, pubKey, this.sandbox);
   },
 
   /**
    * re-wrap the symmetric key inside a CryptoObject to allow other
    * keypairs access to the encrypted content
+   * A CryptoObject is either some encrypted data with associated wrapped symKey
+   * or, just a symKey object
+   *
    * @param object aCipherObject
    * @param string aPublicKey
    * @param function aCallback
    * @returns void
    */
-  wrapCipher: function DA_wrapCipher(aCipherObject, aPublicKey, aCallback)
+  wrapKey: function DA_wrapKey(aCipherObject, aPublicKey, aCallback)
   {
+    // XXXddahl: also accept an array of public keys in case we are
+    // updating a single cipher object many times over?? Or create wrapKeys()??
     // unwrap, then re-wrap the cipher object's symmetric key with a new publicKey
-    if (!(typeof aCallback == "function")) {
+
+    if ((!aCipherObject.iv) || (!aCipherObject.wrappedKey) ||
+        (!aCipherObject.pubKey)) {
+      // this is not a stand-alone key or a cipher object, reject it
       let exception =
-        new Components.Exception("First argument should be a function",
+        new Components.Exception("Invalid input: First argument is not a Symmetric Key or Cipher Object",
                                  Cr.NS_ERROR_INVALID_ARG,
                                  Components.stack.caller);
       throw exception;
     }
 
-    crypto.wrapCipher(aCipherObject, aPublicKey, aCallback, this.sandbox);
-  },
-
-  symEncrypt: function DA_symEncrypt(aPlainText, aPubKey, aCallback)
-  {
-    // XXXddahl: make aPubKey optional: use wrapCipher to allow additional
-    // keypairs access to the encrypted content
     if (!(typeof aCallback == "function")) {
       let exception =
         new Components.Exception("Third argument should be a function",
@@ -239,16 +249,41 @@ DOMCryptAPI.prototype = {
                                  Components.stack.caller);
       throw exception;
     }
+    // we don't re-encrypt anything, we just unwrap and then wrap the key
+    crypto.wrapKey(aCipherObject, aPublicKey, aCallback, this.sandbox);
+  },
 
-    if (!(typeof aPlainText == "string") || !(typeof aPubKey == "string")) {
+  // aPublicKey is optional: the current user's pub key is used by default
+  // to protect the symmetric key
+  symEncrypt: function DA_symEncrypt(aPlainText, aCallback, aPublicKey)
+  {
+    // XXXddahl: add aSymmetricKey as an optional arg to allow for independent
+    // key generation - it may also be that generateSymKey is unneeded as this
+    // method is starting to look more complicated than wanted
+    if (!(typeof aCallback == "function")) {
       let exception =
-        new Components.Exception("First and second arguments should be Strings",
+        new Components.Exception("Second argument should be a function",
                                  Cr.NS_ERROR_INVALID_ARG,
                                  Components.stack.caller);
       throw exception;
     }
 
-    crypto.symEncrypt(aPlainText, aPubKey, aCallback, this.sandbox);
+    if (!(typeof aPlainText == "string")) {
+      let exception =
+        new Components.Exception("First argument should be a String",
+                                 Cr.NS_ERROR_INVALID_ARG,
+                                 Components.stack.caller);
+      throw exception;
+    }
+
+    var pubKey;
+    if (typeof aPublicKey == "string") {
+      pubKey = aPublicKey;
+    }
+    else {
+      pubKey = null;
+    }
+    crypto.symEncrypt(aPlainText, pubKey, aCallback, this.sandbox);
   },
 
   symDecrypt: function DA_symDecrypt(aCipherObject, aCallback)

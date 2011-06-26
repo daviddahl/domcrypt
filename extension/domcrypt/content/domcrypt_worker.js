@@ -70,6 +70,7 @@ const VERIFY            = "verify";
 const GENERATE_SYM_KEY  = "generateSymKey";
 const SYM_ENCRYPT       = "symEncrypt";
 const SYM_DECRYPT       = "symDecrypt";
+const WRAP_SYM_KEY      = "wrapSymKey";
 const VERIFY_PASSPHRASE = "verifyPassphrase";
 const SHUTDOWN          = "shutdown";
 const INITIALIZE        = "init";
@@ -142,7 +143,16 @@ onmessage = function domcryptWorkerOnMessage(aEvent)
                                     aEvent.data.iv);
 
     postMessage({ plainText: result, action: "symDecrypted" });
+    break;
+  case WRAP_SYM_KEY:
+    result = WeaveCryptoWrapper.wrapSymKey(aEvent.data.cipherObject,
+                                           aEvent.data.pubKey,
+                                           aEvent.data.privKey,
+                                           aEvent.data.passphrase,
+                                           aEvent.data.salt,
+                                           aEvent.data.iv);
 
+    postMessage({ action: "symKeyWrapped", cipherObject: result });
     break;
   case VERIFY_PASSPHRASE:
     result = WeaveCryptoWrapper.verifyPassphrase(aEvent.data.privKey,
@@ -294,7 +304,6 @@ var WeaveCryptoWrapper = {
     catch (ex) {
       log(ex);
       log(ex.stack);
-      Cu.reporterror(ex);
       throw(ex);
     }
     finally {
@@ -329,7 +338,6 @@ var WeaveCryptoWrapper = {
     }
     catch (ex) {
       postMessage({ action: "error", method: "sign", error: ex, notify: true });
-      Cu.reportError(ex);
       throw ex;
     }
     finally {
@@ -420,13 +428,65 @@ var WeaveCryptoWrapper = {
     catch (ex) {
       log(ex);
       log(ex.stack);
-      Cu.reportError(ex);
       throw(ex);
     }
     finally {
       // get rid of the passphrase, etc
       delete aPassphrase;
       delete aPrivateKey;
+    }
+  },
+
+  /**
+   * re-wrap the symmetric key property of either a symmetric key cipher object or
+   * an encrypted data cipher object
+   * @param object aCipherObject
+   * @param string aPublicKey
+   * @param string aPrivateKey
+   * @param string aPassphrase
+   * @param string aSalt
+   * @param string aIV
+   * @returns object
+   */
+  wrapSymKey:
+  function
+  WCW_wrapSymKey(aCipherObject, aPublicKey, aPrivateKey, aPassphrase, aSalt, aIV)
+  {
+    try {
+      var verify = WeaveCrypto.verifyPassphrase(aPrivateKey,
+                                                aPassphrase,
+                                                aSalt,
+                                                aIV);
+
+      var unwrappedKey = WeaveCrypto.unwrapSymmetricKey(aCipherObject.wrappedKey,
+                                                        aPrivateKey,
+                                                        aPassphrase,
+                                                        aSalt,
+                                                        aIV);
+
+      // wrap the key with aPublicKey
+      var randomSymKey = WeaveCrypto.generateRandomKey();
+      var wrappedKey = WeaveCrypto.wrapSymmetricKey(randomSymKey, aPublicKey);
+
+      var cipherObj;
+
+      // if there is no cipherText property, we are returning a symKey only
+      if (aCipherObject.cipherText) {
+        return { cipherText: aCipherObject.cipherText, iv: aCipherObject.iv, wrappedKey: wrappedKey, pubKey: aPublicKey };
+      }
+
+      return { iv: aCipherObject.iv, wrappedKey: wrappedKey, pubKey: aPublicKey };
+    }
+    catch (ex) {
+      log(ex);
+      log(ex.stack);
+      throw(ex);
+    }
+    finally {
+      // get rid of the passphrase, etc
+      delete aPassphrase;
+      delete aPrivateKey;
+      delete unwrappedKey;
     }
   },
 
