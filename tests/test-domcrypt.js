@@ -196,7 +196,6 @@ function wrapKey()
 {
   // encrypt some data, use another public key to generate a new cipher
   // object access to the encypted data
-  var altPubKey = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq7M+F9Bh+n7wK7rHCiVNTRoGnwvj563W5sAne4ezeBs6NYXBhwCUSahXbMWpAZrSzTg2gDHTt8pt0ySbkDwMBCO22bCayLSB75PaEYDufgNCYXqqR2FJbPTL+whnCS9D14tB9BQ4aXL1ZLVJ31SF+QvYzAXWlN0CHEZsFvgdth3e8iurBd7LguYNyizo6LQc1N9iAx6crG7Q0HCDznALIiCdr0KPve4upBOO1FgBTDRsur7Zcx2DbFzllSud9mnFKgpa6leDETMaO3jAIBWSvGv+hSXvsdnL6/ip2WcRApPTtxagkzz5JXnioNsWFN+lmNPc8F29ubKaUPrOjkH2hQIDAQAB";
 
   // encrypt the string
   mozCipher.pk.getPublicKey(function (aPubKey){
@@ -204,37 +203,40 @@ function wrapKey()
   console.log("The public key is used to wrap the symmetric key after the data is encrypted");
   var text = "It was a bright cold day in April and whatnot...";
   console.log("encrypting: ", text);
-  mozCipher.sym.encrypt(text,
-                        function (cipherObj){
-                          console.log("cipher text: ");
-                          console.log(cipherObj.cipherText);
-                          var props = "";
-                          for (var prop in cipherObj) {
-                            props = props + prop + ": " + cipherObj[prop] + "\n\n";
-                          }
-                          document.getElementById("sym-encrypt2-results").
-                            innerHTML = props;
+  mozCipher.sym.encrypt(text, function (cipherObj){
+    console.log("cipher text: ");
+    console.log(cipherObj.cipherText);
+    var props = "";
+    for (var prop in cipherObj) {
+      props = props + prop + ": " + cipherObj[prop] + "\n\n";
+    }
+    document.getElementById("sym-encrypt2-results").
+      innerHTML = props;
 
-                          // Re-wrap the key
-                          console.log("ok, re-wrap the key!");
-                          mozCipher.sym.wrapKey(cipherObj, altPubKey,
-                                                function (reWrappedCipherObj){
-                            // the reWrappedCipher object should be the same
-                            // cipher object, except the symKey has been updated
-                            // and allows another private key acces to the data
-                            console.log(reWrappedCipherObj);
-                            var props = "";
-                            for (var prop in reWrappedCipherObj) {
-                              props = props + prop + ": " +
-                                reWrappedCipherObj[prop] + "\n\n";
-                            }
-                            document.getElementById("sym-re-wrap-results").
-                              innerHTML = props;
-                          });
-                        });
+    // re-create the keypair and then re-wrap the key
+//    mozCipher.pk.generateKeypair(function (aNewPubKey) {
+      // Re-wrap the key
+      console.log("ok, re-wrap the key!");
+      mozCipher.sym.wrapKey(cipherObj, aPubKey, function (reWrappedCipherObj) {
+        // the reWrappedCipher object should be the same
+        // cipher object, except the symKey has been updated
+        // and allows another private key acces to the data
+        console.log(reWrappedCipherObj);
+        var props = "";
+        for (var prop in reWrappedCipherObj) {
+          props = props + prop + ": " +
+            reWrappedCipherObj[prop] + "\n\n";
+        }
+        document.getElementById("sym-re-wrap-results").
+          innerHTML = props;
+
+        // decrypt the message
+        mozCipher.sym.decrypt(reWrappedCipherObj, function(plainText) {
+          document.getElementById("sym-re-wrap-decrypt-results").innerHTML = plainText;
+        });
+      });
+//    });
+  });
   });
 }
 
-// var cipherObj = {cipherText:"Dt1q6dQ6a5SNozkb+8Ej9hYvAdlJBYbNhxVQXpOyswSeprJsvOO7sT209kkI8KATEbrz5PXWGgX12OxVvvJvFQ==", iv:"jXnSHSq2x3Cnb37SKwnwUg==", wrappedKey:"H5DkwRv+EGeZl06u6p9/XVum58KBWeD47A4k5JX53p042VMXacjoIaUwbA+cmd4L5CQNqGGlLZkPFFl9FSLwAekFWMuHP8QhctoBejD7t/xL1aO1GVbXwUiBXuXGLOvtd3NrfEtcVMlV3yIgVFVX8Gi03OH8wafVTPBVcvvN2YDbeWK5YOX4rvk51dehQdRkj1lvI0XQHj71gcT5x1Jir86RF6KXofrdcpxH3xwww9tUl7lJVhVRIeiKNJaVodXiLfthcuksIKAElvO7bMjY2EHZsIJtj4w5gx96dvLFmUeQp5Bg6rUNXLrODwhkVBx+evCDtm/FAZ49ucF5dTBoyw==", pubKey:"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq7M+F9Bh+n7wK7rHCiVNTRoGnwvj563W5sAne4ezeBs6NYXBhwCUSahXbMWpAZrSzTg2gDHTt8pt0ySbkDwMBCO22bCayLSB75PaEYDufgNCYXqqR2FJbPTL+whnCS9D14tB9BQ4aXL1ZLVJ31SF+QvYzAXWlN0CHEZsFvgdth3e8iurBd7LguYNyizo6LQc1N9iAx6crG7Q0HCDznALIiCdr0KPve4upBOO1FgBTDRsur7Zcx2DbFzllSud9mnFKgpa6leDETMaO3jAIBWSvGv+hSXvsdnL6/ip2WcRApPTtxagkzz5JXnioNsWFN+lmNPc8F29ubKaUPrOjkH2hQIDAQAB"};
-
-// mozCipher.sym.decrypt(cipherObj, function (text){console.log(text);});

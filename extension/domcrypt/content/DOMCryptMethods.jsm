@@ -666,6 +666,7 @@ var DOMCryptMethods = {
   symDecrypt:
   function DCM_SymDecrypt(aCipherObject, aCallback, aSandbox)
   {
+    log(aCipherObject);
     var passphrase = this.passphrase; // this getter will throw if nothing entered
 
     var userIV = secretDecoderRing.decryptString(this.config.default.iv);

@@ -465,8 +465,8 @@ var WeaveCryptoWrapper = {
                                                         aIV);
 
       // wrap the key with aPublicKey
-      var randomSymKey = WeaveCrypto.generateRandomKey();
-      var wrappedKey = WeaveCrypto.wrapSymmetricKey(randomSymKey, aPublicKey);
+      // var randomSymKey = WeaveCrypto.generateRandomKey();
+      var wrappedKey = WeaveCrypto.wrapSymmetricKey(unwrappedKey, aPublicKey);
 
       var cipherObj;
 
