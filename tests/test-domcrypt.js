@@ -213,8 +213,6 @@ function wrapKey()
     document.getElementById("sym-encrypt2-results").
       innerHTML = props;
 
-    // re-create the keypair and then re-wrap the key
-//    mozCipher.pk.generateKeypair(function (aNewPubKey) {
       // Re-wrap the key
       console.log("ok, re-wrap the key!");
       mozCipher.sym.wrapKey(cipherObj, aPubKey, function (reWrappedCipherObj) {
@@ -235,8 +233,36 @@ function wrapKey()
           document.getElementById("sym-re-wrap-decrypt-results").innerHTML = plainText;
         });
       });
-//    });
   });
   });
 }
 
+function cryptLocalStorage()
+{
+  mozCipher;
+  // localStorage demo
+  // create data to save in localStorage after encrypting it
+  // decrypt and display the data
+
+  // document.removeEventListener("DOMContentLoaded", cryptLocalStorage);
+
+  var plainText = "It  was a  bright cold  day  in April,  and the  clocks were  striking thirteen.  Winston Smith,  his chin nuzzled into his breast in an effort to escape  the  vile wind, slipped quickly  through the glass doors of Victory Mansions,  though not quickly enough to prevent a swirl of gritty dust from entering along with him.";
+
+  mozCipher.sym.encrypt(plainText, function (cryptoObj){
+    var cryptoText = JSON.stringify(cryptoObj);
+    localStorage.setItem("openingText", cryptoText);
+    // window.setTimeout(function (){
+      var openingTxt = localStorage.getItem("openingText");
+      console.log("JSON data in localStorage: ", openingTxt);
+
+      // decrypt it:
+      var _cryptoObj = JSON.parse(openingTxt);
+      mozCipher.sym.decrypt(_cryptoObj, function (plainText){
+        console.log("decrypted: ", plainText);
+      });
+//    }, 500);
+
+  });
+}
+
+// document.addEventListener("DOMContentLoaded", cryptLocalStorage, false);

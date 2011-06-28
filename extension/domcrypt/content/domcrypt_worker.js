@@ -77,7 +77,7 @@ const INITIALIZE        = "init";
 
 onmessage = function domcryptWorkerOnMessage(aEvent)
 {
-  let result;
+  let result, cipherObject;
 
   switch(aEvent.data.action) {
   case INITIALIZE:
@@ -92,7 +92,13 @@ onmessage = function domcryptWorkerOnMessage(aEvent)
     postMessage({ cipherMessage: result, action: "dataEncrypted" });
     break;
   case DECRYPT:
-    result = WeaveCryptoWrapper.decrypt(aEvent.data.cipherMessage,
+    let cipherMessage = {
+      content: aEvent.data.cipherContent,
+      wrappedKey: aEvent.data.cipherWrappedKey,
+      pubKey: aEvent.data.cipherPubKey,
+      iv: aEvent.data.cipherIV
+    };
+    result = WeaveCryptoWrapper.decrypt(cipherMessage,
                                         aEvent.data.passphrase,
                                         aEvent.data.privKey,
                                         aEvent.data.salt,
@@ -135,8 +141,14 @@ onmessage = function domcryptWorkerOnMessage(aEvent)
                 });
     break;
   case SYM_DECRYPT:
+    cipherObject = {
+      wrappedKey: aEvent.data.cipherWrappedKey,
+      pubKey: aEvent.data.cipherPubKey,
+      cipherText: aEvent.data.cipherText,
+      iv: aEvent.data.cipherIV
+    };
     result =
-      WeaveCryptoWrapper.symDecrypt(aEvent.data.cipherObject,
+      WeaveCryptoWrapper.symDecrypt(cipherObject,
                                     aEvent.data.privKey,
                                     aEvent.data.passphrase,
                                     aEvent.data.salt,
@@ -145,7 +157,17 @@ onmessage = function domcryptWorkerOnMessage(aEvent)
     postMessage({ plainText: result, action: "symDecrypted" });
     break;
   case WRAP_SYM_KEY:
-    result = WeaveCryptoWrapper.wrapSymKey(aEvent.data.cipherObject,
+    let cipherText = null;
+    if (aEvent.data.cipherText) {
+      cipherText = aEvent.data.cipherText;
+    }
+    cipherObject = {
+      wrappedKey: aEvent.data.cipherWrappedKey,
+      pubKey: aEvent.data.cipherPubKey,
+      cipherText: cipherText,
+      iv: aEvent.data.cipherIV
+    };
+    result = WeaveCryptoWrapper.wrapSymKey(cipherObject,
                                            aEvent.data.pubKey,
                                            aEvent.data.privKey,
                                            aEvent.data.passphrase,
@@ -465,7 +487,6 @@ var WeaveCryptoWrapper = {
                                                         aIV);
 
       // wrap the key with aPublicKey
-      // var randomSymKey = WeaveCrypto.generateRandomKey();
       var wrappedKey = WeaveCrypto.wrapSymmetricKey(unwrappedKey, aPublicKey);
 
       var cipherObj;

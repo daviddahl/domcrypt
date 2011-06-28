@@ -214,6 +214,9 @@ worker.onmessage = function DCM_worker_onmessage(aEvent) {
 
 worker.onerror = function DCM_onerror(aError) {
   log("Worker Error: " + aError.message);
+  for (let prop in aError) {
+    log(prop + ": " + aError[prop]);
+  }
 };
 
 // Constants to describe all operations
@@ -413,9 +416,14 @@ var DOMCryptMethods = {
     let userIV = secretDecoderRing.decryptString(this.config.default.iv);
     let userSalt = secretDecoderRing.decryptString(this.config.default.salt);
     let userPrivKey = this.config.default.privKey;
+    let cipherMessage = XPCNativeWrapper.unwrap(aCipherMessage);
 
     worker.postMessage({ action: DECRYPT,
-                         cipherMessage: aCipherMessage,
+                         // cipherMessage: aCipherMessage,
+                         cipherContent: cipherMessage.content,
+                         cipherWrappedKey: cipherMessage.wrappedKey,
+                         cipherPubKey: cipherMessage.pubKey,
+                         cipherIV: cipherMessage.iv,
                          passphrase: aPassphrase,
                          privKey: userPrivKey,
                          salt: userSalt,
@@ -627,8 +635,18 @@ var DOMCryptMethods = {
     var userSalt = secretDecoderRing.decryptString(this.config.default.salt);
     var userPrivKey = this.config.default.privKey;
 
+    var cipherObj = XPCNativeWrapper.unwrap(aCipherObject);
+    var cipherText = null;
+    if (cipherObj.cipherText) {
+      cipherText = cipherObj.cipherText;
+    }
+
     worker.postMessage({ action: WRAP_SYM_KEY,
-                         cipherObject: aCipherObject,
+                         // cipherObject: cipherObj,
+                         cipherText: cipherText,
+                         cipherWrappedKey: cipherObj.wrappedKey,
+                         cipherPubKey: cipherObj.pubKey,
+                         cipherIV: cipherObj.iv,
                          iv: userIV,
                          salt: userSalt,
                          privKey: userPrivKey,
@@ -666,17 +684,22 @@ var DOMCryptMethods = {
   symDecrypt:
   function DCM_SymDecrypt(aCipherObject, aCallback, aSandbox)
   {
-    log(aCipherObject);
     var passphrase = this.passphrase; // this getter will throw if nothing entered
-
     var userIV = secretDecoderRing.decryptString(this.config.default.iv);
     var userSalt = secretDecoderRing.decryptString(this.config.default.salt);
     var userPrivKey = this.config.default.privKey;
 
     Callbacks.register(SYM_DECRYPT, aCallback, aSandbox);
 
+    var cipherObj = XPCNativeWrapper.unwrap(aCipherObject);
+
     worker.postMessage({ action: SYM_DECRYPT,
-                         cipherObject: aCipherObject,
+                         // cipherObject: cipherObj,
+                         // XXX: work around for bug 667388
+                         cipherText: cipherObj.cipherText,
+                         cipherWrappedKey: cipherObj.wrappedKey,
+                         cipherPubKey: cipherObj.pubKey,
+                         cipherIV: cipherObj.iv,
                          iv: userIV,
                          salt: userSalt,
                          privKey: userPrivKey,
