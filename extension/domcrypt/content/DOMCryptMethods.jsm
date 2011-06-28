@@ -214,9 +214,8 @@ worker.onmessage = function DCM_worker_onmessage(aEvent) {
 
 worker.onerror = function DCM_onerror(aError) {
   log("Worker Error: " + aError.message);
-  for (let prop in aError) {
-    log(prop + ": " + aError[prop]);
-  }
+  log("Worker Error filename: " + aError.filename);
+  log("Worker Error line no: " + aError.lineno);
 };
 
 // Constants to describe all operations
