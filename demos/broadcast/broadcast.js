@@ -55,43 +55,74 @@ function MessageComposer(aDisplayName, aFollowers)
   var self = this;
   mozCipher.pk.getPublicKey(function (aPubKey){
     self.authorPubKey = aPubKey;
-    // TODO: activate the send button
+    self.followers.push({handle: self.author, pubKey: self.authorPubKey });
   });
 }
 
 MessageComposer.prototype = {
   author: null,
+
   authorPubKey: null,
+
   followers: [],
 
   bundle: function mc_bundle(aCipherMessage)
   {
+    console.log("bundle--->");
+    console.log(aCipherMessage.idx);
     var self = this;
-    return { followers: [{handle: self.author, pubKey: self.authorPubKey }], message: aCipherMessage };
+    var idx;
+    var messages = [];
+    var bundle = { author: self.author, authorPubKey: self.authorPubKey };
+    // TODO: add authentication token and password to the bundle
+    var len = self.followers.length;
+
+    // need to re-wrap the key for each follower
+    function wrapCallback(aCipherObj) {
+      console.log("idx: " + idx);
+      console.log("cm.idx: " + aCipherMessage.idx);
+      messages.push(aCipherObj);
+      if (aCipherMessage.idx == (idx + 1)) {
+        bundle.messages = messages;
+        self.send(bundle);
+      }
+    }
+
+    for (idx in self.followers) {
+      mozCipher.sym.wrapKey(aCipherMessage, self.followers[idx].pubKey, wrapCallback);
+    }
   },
 
   encrypt: function mc_encrypt()
   {
     var self = this;
+    var followersLen = this.followers.length;
+    console.log(followersLen);
     mozCipher.sym.encrypt($("#msg-input")[0].value, function (aCipherMsg) {
       aCipherMsg.author = this.author;
-      var bundle = self.bundle(aCipherMsg);
       // TODO: send the bundle to the server...
       var date = new Date();
       console.log(self.author);
-      MessageDisplay({author: self.author,
-                      id: date.getTime(),
-                      date: date.toString(),
-                      cipherText: aCipherMsg.cipherText,
-                      wrappedKey: aCipherMsg.wrappedKey,
-                      iv: aCipherMsg.iv,
-                      pubKey: aCipherMsg.pubKey});
+      var message = {author: self.author,
+                     id: date.getTime(),
+                     date: date.toString(),
+                     cipherText: aCipherMsg.cipherText,
+                     wrappedKey: aCipherMsg.wrappedKey,
+                     iv: aCipherMsg.iv,
+                     pubKey: aCipherMsg.pubKey,
+                     idx: followersLen};
+
+      var bundle = self.bundle(message);
+
+      MessageDisplay(message);
     });
   },
 
-  send: function mc_send()
+  send: function mc_send(bundle)
   {
-    // TODO
+    // TODO: HTTP POST to server
+    console.log("SEND--->");
+    console.log(bundle);
   },
 
   validate: function mc_validate()
@@ -119,9 +150,10 @@ MessageReader.prototype = {
     var msg = timelineIndex[this.id];
     mozCipher.sym.decrypt(msg, function (plainText) {
       var id = "#" + self.id;
-      console.log(id);
       $(id)[0].childNodes[2].innerHTML =
         '<pre>{plainText}</pre>'.printf({plainText: plainText});
+      // disable read button
+      $(id + " > .read-one")[0].disabled = true;
     });
   }
 };

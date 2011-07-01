@@ -12,12 +12,13 @@
                   border-left: 1px solid #eee;
                   margin-top: 0.5em;
                 }
-      #msg-send { margin-left: 1em; margin-bottom: -1em; }
+      #msg-send { margin-left: 2em; margin-bottom: -1em; }
       .msg-content { width: 85%; padding: 0.5em; overflow: hidden; font-family: monospace; font-size: 0.8em; }
       .read-one { margin-left: 1em; }
       .msg { padding: 0.5em; border-bottom: 1px solid #ddd; }
       .msg-date { margin-left: 0.5em; font-size: 0.7em; }
       .msg-author { margin-left: 0.5em; font-size: 0.8em; font-weight: bold; }
+      #msg-input { width: 80%; height: 4em; }
     </style>
     <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js"></script>
     <script src="broadcast.js"></script>
@@ -26,7 +27,7 @@
     <div id="wrapper">
       <h1>CryptoBroadcast</h1>
       <div id="input-area">
-        <textarea id="msg-input" cols="50" rows="3" maxlength="4096"></textarea>
+        <textarea id="msg-input" maxlength="4096"></textarea>
         <button id="msg-send" onclick="messageComposer.validate();">Send</button>
         <div id="messages">
       </div>  
