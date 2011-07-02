@@ -1,0 +1,17 @@
+{% extends "index.html" %}
+{% block subtitle %}
+ : create account
+{% endblock subtitle %}
+{% block script %}
+<script src="/site_media/js/create-account.js"></script>
+{% endblock script %}
+{% block wraptitle %}
+ : create account
+{% endblock wraptitle %}
+{% block main %}
+<div id="create-account">
+  <p><label for="chosen-name">choose a name to use:</label> </p>
+  <p><input maxlength="32" id="chosen-name"/></p>
+  <p><button id="create-account-btn">create</button></p>
+</div>
+{% endblock main %}
