@@ -3,17 +3,23 @@ var jsonMessages = [];
 //  a working message composer
 var timelineData = [];
 var followers = [];
-var messageComposer;
 var timelineIndex = {};
 
 $(document).ready(function() {
+  // check for DOMCrypt
+  checkDOMCrypt();
   // key bindings
-  $("#search").keydown(function (event){
-    if (event.keyCode == '13') {
+  $("#search").keyup(function(e) {
+    if (e.keyCode == '13') {
       var str = $("#search")[0].value;
       if (str) {
         new SearchAccounts(str);
       }
+    }
+    if (e.keyCode == 27) {
+      $("#search")[0].value = "find people...";
+      $("#results").children().remove();
+      $("#search").blur();
     }
   });
 
@@ -24,21 +30,19 @@ $(document).ready(function() {
     }
   });
 
-  // create message store
-  var idx;
-  for (idx in jsonMessages) {
-    var message = JSON.parse(jsonMessages[idx]);
-    timelineData.push(message);
-  }
-  // now we need to populate the messages div with messages
-  for (idx in timelineData) {
-    MessageDisplay(timelineData[idx]);
-  }
+  $("#search").blur(function (){
+    if (!(this.value == "find people...")) {
+      this.value = "find people...";
+    }
+  });
+
   try {
     // need to check for credentials, decrypt them and configure the application
     var _credentials = localStorage.getItem("credentials");
     if (!_credentials) {
-      return;
+      alert("It looks like you do not have an account yet, redirecting momentarily...");
+      // document.location = "/bcast/create/account/";
+      // return;
     }
     // if (!_credentials) {
     //   // display login page
@@ -59,14 +63,55 @@ $(document).ready(function() {
   }
 });
 
+function checkDOMCrypt()
+{
+  return;
+  if (window.mozCipher) {
+    // check for a pub key:
+    mozCipher.pk.getPublicKey(function (aPubKey){
+      if (!aPubKey) {
+        alert("Additional configuration is required to use bcast. Please create a passphrase that will secure your data...");
+        mozCipher.pk.generateKeypair(function (aPubKey){
+          if (aPubKey) {
+            alert("bcast configuration complete, next: create a server account...");
+            document.location = "/bcast/create/account/?t=" + Date.now();
+          }
+        });
+      }
+    });
+  }
+  else {
+    alert("DOMCrypt API (window.mozCipher) not detected. DOMCrypt is required to use bcast. Please visit http://domcrypt.org/ for installation instructions.");
+  }
+}
+
+
+
 function MessageDisplay(aMessageData)
 {
-  var tmpl = '<div class="msg" id="{id}">'
-             + '<div class="msg-date">{date}</div>'
-             + '<div class="msg-author">{author}</div>'
-             + '<div class="msg-content">{cipherText}</div>'
-             + '<button class="read-one" onclick="DisplayPlainText(this);">Read</button>'
-             + '</div>';
+  for (var prop in aMessageData) {
+    console.log(prop + ": " + aMessageData[prop]);
+  }
+  // TODO: use the same keys for both db and locally created messages
+  var tmpl;
+  if (aMessageData.content) {
+    // database template
+    tmpl = '<div class="msg" id="{id}">'
+      + '<div class="msg-date">{date_time}</div>'
+      + '<div class="msg-author">{author_display_name}</div>'
+      + '<div class="msg-content">{content}</div>'
+      + '<button class="read-one" onclick="DisplayPlainText(this);">Read</button>'
+      + '</div>';
+  }
+  else {
+    tmpl = '<div class="msg" id="{id}">'
+      + '<div class="msg-date">{date}</div>'
+      + '<div class="msg-author">{author}</div>'
+      + '<div class="msg-content">{cipherText}</div>'
+      + '<button class="read-one" onclick="DisplayPlainText(this);">Read</button>'
+      + '</div>';
+  }
+
   var node = $(tmpl.printf(aMessageData));
   $("#msg-input")[0].value = "";
   $("#messages").prepend(node);
@@ -92,7 +137,7 @@ function MessageComposer(aCredentials, aFollowers)
   this.author = aCredentials.displayName;
   this.token = aCredentials.token;
   this.ID = aCredentials.ID;
-  $("#display-name")[0].innerText = this.author;
+  $("#display-name")[0].innerHTML = this.author;
   this.followers = aFollowers;
   var self = this;
   mozCipher.pk.getPublicKey(function (aPubKey){
@@ -231,7 +276,18 @@ MessageReader.prototype = {
   {
     var self = this;
     var msg = timelineIndex[this.id];
-    mozCipher.sym.decrypt(msg, function (plainText) {
+    var _msg;
+    if (msg.content) { // this object came from the server, reconfigure it
+      _msg = {
+        cipherText: msg.content,
+        iv: msg.iv,
+        wrappedKey: msg.wrapped_key
+      };
+    }
+    else {
+      _msg = msg;
+    }
+    mozCipher.sym.decrypt(_msg, function (plainText) {
       var id = "#" + self.id;
       $(id)[0].childNodes[2].innerHTML =
         '<pre>{plainText}</pre>'.printf({plainText: plainText});
@@ -330,16 +386,16 @@ function SearchAccounts(aNameFragment)
                    + '<a class="txt-btn" onclick="follow(this);">follow...</a> '
                    + '<a class="txt-btn" onclick="block(this);">*block*</a>'
                    + '</p>';
-        $("#search-results").children().remove();
+        $("#results").children().remove();
         // display the names found in the results div
         for (var i = 0; i < data.msg.length; i++) {
-          $("#search-results").append($(tmpl.printf(data.msg[i])));
+          // TODO: do not allow following of yourself:)
+          $("#results").append($(tmpl.printf(data.msg[i])));
         }
       }
       else {
-        $("#search-results").children().remove();
-        $("#search-results").append($(errTmpl.printf({err: "Not found"})));
-        $(".search-error").fadeOut(2000);
+        $("#results").children().remove();
+        notify(null, "not found", null, true);
       }
     }
   };
@@ -358,12 +414,20 @@ function follow(aNode)
     dataType: "json",
     success: function success(data)
     {
+      var name = aNode.parentNode.childNodes[0].innerHTML;
       if (data.status == "success") {
-        alert("success: follow request was sent");
+        var msg = "follow request sent to '" + name + "'";
+        notify("success", msg);
         // TODO: add the user to a 'following' list
       }
+      else if (data.msg == "FOLLOWING") {
+        notify("already following", name);
+      }
+      else if (data.msg == "CANNOT_FOLLOW_YOURSELF") {
+        notify("you cannot follow", "you");
+      }
       else {
-        alert("server error: follow request failed");
+        notify("server error",  "'follow' request failed");
       }
     }
   };
@@ -375,7 +439,115 @@ function block(aNode)
 
 }
 
+function showFollowing()
+{
+  var url = "/bcast/_xhr/get/following/?a1={a1}&a2={a2}&t={t}".
+    printf({a1: messageComposer.ID, a2: messageComposer.token, t: Date.now()});
+  var config = {
+    url: url,
+    dataType: "json",
+    success: function success(data)
+    {
+      var len = data.following.length;
+      if (len > 0) {
+        $("#results").children().remove();
+        $("#results").append($("<h3>... following ...</h3>"));
+        var tmpl = '<div>{display_name}</div>';
+        for (var i = 0; i < len; i++) {
+          $("#results").append($(tmpl.printf({display_name: data.following[i]})));
+        }
+      }
+      else {
+        notify("You are not following", "anyone");
+      }
+    }
+  };
+  $.ajax(config);
+}
+
+function showFollowers()
+{
+  var url = "/bcast/_xhr/get/followers/?a1={a1}&a2={a2}&t={t}".
+    printf({a1: messageComposer.ID, a2: messageComposer.token, t: Date.now()});
+  var config = {
+    url: url,
+    dataType: "json",
+    success: function success(data)
+    {
+      var len = data.followers.length;
+      if (len > 0) {
+        $("#results").children().remove();
+        $("#results").append($("<h3>... current followers ...</h3>"));
+        var tmpl = '<div>{display_name}</div>';
+        for (var i = 0; i < len; i++) {
+          $("#results").append($(tmpl.printf({display_name: data.followers[i]})));
+        }
+      }
+      else {
+        notify("No one is following", "you");
+      }
+    }
+  };
+  $.ajax(config);
+}
+
+function getMessages(aOffset, aLastFetchedID)
+{
+  if (!localStorage.getItem("credentials")) {
+    // user has never logged in yet, do not attempt to fetch messages
+    return;
+  }
+  var url =  "/bcast/_xhr/get/msgs/?a1={a1}&a2={a2}".
+    printf({a1: messageComposer.ID, a2: messageComposer.token});
+  if (aOffset) {
+    url = url + "&offset={offset}".printf({offset: aOffset});
+  }
+  if (aLastFetchedID) {
+    url = url + "&lastfectched={lastfetched}".printf({lastfetched: aLastFetchedID});
+  }
+  var config = {
+    url: url,
+    dataType: "json",
+    success: function success (data)
+    {
+      var len = data.msg.length;
+      var lastMsgIdx = data.msg.length - 1;
+      if (data.status == "success") {
+        // display the messages by prepending them to #messages
+        for (var i = 0; i < data.msg.length; i++) {
+          MessageDisplay(data.msg[i]);
+        }
+
+        document.lastFetchedID = data.msg[lastMsgIdx].id;
+      }
+    }
+  };
+  $.ajax(config);
+}
+
 // Utilities
+
+function notify(aTitle, aMsg, aDuration, aError) {
+  var skin = "rounded";
+  var duration;
+  if (aDuration) {
+    duration = aDuration;
+  }
+  if (aError) {
+    skin = skin + ",red";
+  }
+  $.notifier.broadcast(
+    {
+	    ttl: aTitle,
+		  msg: aMsg,
+      skin: skin,
+      duration: duration
+	  }
+  );
+}
+
+
+// printf
 String.prototype.printf = function (obj) {
   var useArguments = false;
   var _arguments = arguments;

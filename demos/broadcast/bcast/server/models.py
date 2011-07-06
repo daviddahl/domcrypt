@@ -11,6 +11,7 @@ class TimelineMessage(models.Model):
     """
     recipient = models.ForeignKey('server.Account', related_name="recipient")
     author = models.ForeignKey('server.Account', related_name="author")
+    author_display_name = models.CharField(max_length=255, null=True, blank=True)
     date_time = models.DateTimeField(auto_now_add=True)
     content = models.TextField(null=False, blank=False)
     wrapped_key = models.TextField(null=False, blank=False)
@@ -23,6 +24,7 @@ class TimelineMessage(models.Model):
 
     def save(self, *args, **kwargs):
         resave = False
+        self.author_display_name = self.author.display_name
         if self.parent_message_id:
             super(TimelineMessage, self).save(*args, **kwargs)
             return
@@ -58,14 +60,12 @@ class Account(models.Model):
 
         super(Account, self).save(*args, **kwargs) 
 
-class Followers(models.Model):
+class Follower(models.Model):
     followee = models.ForeignKey('server.Account', related_name="followee")
-    follower = models.ForeignKey('server.Account', related_name="follower")
+    followed = models.ForeignKey('server.Account', related_name="followed")
     ctime = models.DateTimeField(auto_now_add=True)
     # TODO: need to add an approved boolean and date as well as a 
     # blocked boolean and date 
 
     def __unicode__(self):
-        return u"%s: %s" % (self.followee, self.follower,)
-   
-
+        return u"%s: %s" % (self.followee, self.followed,)

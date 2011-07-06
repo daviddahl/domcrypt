@@ -4,34 +4,45 @@
     <link rel="icon" href="broadcast.png" type="image/png">
     <title>bcast {% block subtitle %}{% endblock subtitle %}</title>
     <style>
-      body { font-family: monospace; }
-      button { font-family: monospace; }
-      h1 { font-size: 1em; }
+      body { font-family: "IM Fell English"; background-color: #BEC2C8;}
+      button { font-family: "IM Fell English"; }
+      h1 { font-size: 2.5em; }
+      h2 { font-size: 1.5em; }
+      h3 { font-size: 0.9em; }
+
       #wrapper { width: 50%; margin-left: 25%; margin-right: 25%; }
       #messages { width: 100%; 
-                  border-top: 1px solid #eee; 
-                  border-right: 1px solid #eee;
-                  border-left: 1px solid #eee;
                   margin-top: 0.5em;
                 }
-      #msg-send { margin-left: 2em; margin-bottom: -1em; }
-      .msg-content { width: 85%; padding: 0.5em; overflow: hidden; font-family: monospace; font-size: 0.9em; }
+      #msg-send {font-size: 1.4em;}
+      .msg-content { width: 85%; overflow: hidden; font-family: monospace; font-size: 0.9em; }
+      #people-tools { margin-top: 1em; }
       .read-one { margin-left: 1em; }
       .msg { padding: 0.5em; border-bottom: 1px solid #ddd; }
       .msg-date { margin-left: 0.5em; font-size: 0.9em; }
       .msg-author { margin-left: 0.5em; font-size: 0.9em; font-weight: bold; }
-      #msg-input { width: 80%; height: 4em; }
+      #msg-input { width: 80%; height: 4em; margin-bottom: -1em; }
       .search-error { color: #f00;}
       .search-result { color: #00f;}
       .txt-btn { color: #777; cursor: pointer; font-size: 80%; border: 1px solid #ccc;}
       .txt-btn:hover { color: #999; border: 1px solid #999; }
+      #followers-box { margin-left: 2em; }
+      #followers { cursor: pointer; text-decoration: underline; font-size: 0.9em; }
+      #following-box { margin-left: 2em; }
+      #following { cursor: pointer; text-decoration: underline; font-size: 0.9em; }
+      #results { max-height: 6em;}
     </style>
-    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js"></script>
+    <link href='http://fonts.googleapis.com/css?family=EB+Garamond&v1' rel='stylesheet' type='text/css'>
+    <link href='http://fonts.googleapis.com/css?family=IM+Fell+English&v1' rel='stylesheet' type='text/css'>
+    <script src="/site_media/js/jquery.js"></script>
+    <script src="/site_media/js/notifier.js"></script>
     <script src="/site_media/js/broadcast.js"></script>
+
     {% block script %}
     {% endblock script %}
   </head>
   <body>
+    <div id="notify" class="notify"></div>
     <div id="wrapper">
       <h1>bcast {% block wraptitle %}{% endblock wraptitle %}</h1>
       <h2 id="display-name"></h2>
@@ -39,9 +50,15 @@
       <div id="input-area">
         <textarea id="msg-input" maxlength="4096"></textarea>
         <button id="msg-send" onclick="messageComposer.validate();">send</button>
-        <div id="search-box">
+        <div id="people-tools">
           <input id="search" maxlength="32" value="find people..."/>
-          <div id="search-results"></div>
+          <span id="followers-box">
+            <a onclick="showFollowers();" id="followers">followers</a>
+          </span>
+          <span id="following-box">
+            <a onclick="showFollowing();" id="following">following</a>
+          </span>
+          <div id="results"></div>
         </div>
         <div id="messages"></div>
       </div>

@@ -1,10 +1,3 @@
-$(document).ready(function() {
-  mozCipher.pk.getPublicKey(function (aPubKey){
-    window._pubKey = aPubKey;
-    $("#create-account-btn").click(function (){new CreateAccount();});
-  });
-});
-
 function CreateAccount()
 {
   // validate input

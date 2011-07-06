@@ -11,11 +11,13 @@ from django.contrib.syndication import feeds
 from django.http import Http404
 from django.views.decorators.csrf import csrf_protect
 from django.template import RequestContext
+from django.db import connection, transaction
 
 from django.core.serializers import serialize
 from django.db.models.query import QuerySet
 
-from bcast.server.models import Account, TimelineMessage, Followers
+from bcast.server.models import Account, TimelineMessage, Follower
+from bcast.server.jsonresponse import JSONResponse
 
 class JsonResponse(HttpResponse):
     content = None
@@ -135,6 +137,26 @@ def x_post_msg(request):
         print e
         return JsonResponse({"status": "failure", "msg": e});
 
+def x_get_msgs(request):
+    """
+    get messages 
+    """
+    try:
+        id = request.GET["a1"]
+        token = request.GET["a2"]
+        if request.GET.has_key("offset"):
+            limit = ":20%s" % (request.GET["offset"])
+        else:
+            limit = ":20"
+        # TODO fix the auth function
+        acct = Account.objects.get(identifier__exact=id, login_token__exact=token)
+        pprint(acct)
+        msgs = TimelineMessage.objects.filter(recipient=acct)
+
+        return JSONResponse({"status": "success", "msg": msgs})
+    except Exception, e:
+        print e
+        return JsonResponse({"status": "failure", "msg": "SERVER_ERROR"})
 
 def x_remove_msg(request):
     """
@@ -183,11 +205,17 @@ def x_follow(request):
     send a follow request
     """
     try:
+        # TODO: do not allow following yourself
         if request.GET["follow"] and request.GET["followee"]:
             # get both users
             follow = Account.objects.get(identifier=request.GET["follow"])
             followee = Account.objects.get(identifier=request.GET["followee"])
-            f = Followers(followee=followee, follower=follow)
+            f = Follower.objects.filter(followee=followee, followed=follow);
+            if f.count() == 1:
+                return JsonResponse({"status": "failure", "msg": "FOLLOWING", "followee": followee.display_name});
+            if follow == followee:
+                return JsonResponse({"status": "failure", "msg": "CANNOT_FOLLOW_YOURSELF", "followee": followee.display_name});
+            f = Follower(followee=followee, followed=follow)
             f.save()
             return JsonResponse({"status": "success", "msg": "FOLLOW_COMPLETED"})
     except Exception, e:
@@ -195,10 +223,48 @@ def x_follow(request):
         return JsonResponse({"status": "failure", "msg": "FOLLOW_FAILED"})
         
 
+def x_get_following(request):
+    """
+    get following
+    """
+    try:
+        if auth(request.GET["a1"], request.GET["a2"]):
+            user = Account.objects.get(identifier=request.GET["a1"], login_token=request.GET["a2"])
+            cursor = connection.cursor()
+            
+            cursor.execute("SELECT followee_id, followed_id FROM server_follower WHERE followee_id=%s", [user.id])
+            following = cursor.fetchall()
+            _following = []
+            for f in following:
+                a = Account.objects.get(id=f[1])
+                _following.append(a.display_name)
+            return JsonResponse({"status": "success", "msg": "FOLLOWING", "following": _following})
+        else:
+            return JsonResponse({"status": "failure", "msg": "SERVER_ERROR", "following":[]})
+    except Exception, e:
+        print e
+        return JsonResponse({"status": "failure", "msg": "SERVER_ERROR", "followers":[]})       
 def x_get_followers(request):
     """
-    get follower's id: display_name object
+    get followers
     """
+    try:
+        if auth(request.GET["a1"], request.GET["a2"]):
+            user = Account.objects.get(identifier=request.GET["a1"], login_token=request.GET["a2"])
+            cursor = connection.cursor()
+            
+            cursor.execute("SELECT followee_id, followed_id FROM server_follower WHERE followed_id=%s", [user.id])
+            followers = cursor.fetchall()
+            _followers = []
+            for f in followers:
+                a = Account.objects.get(id=f[1])
+                _followers.append(a.display_name)
+            return JsonResponse({"status": "success", "msg": "FOLLOWERS", "followers": _followers})
+        else:
+            return JsonResponse({"status": "failure", "msg": "SERVER_ERROR", "followers":[]})
+    except Exception, e:
+        print e
+        return JsonResponse({"status": "failure", "msg": "SERVER_ERROR", "followers":[]})
 
 def x_block(request):
     """
