@@ -87,16 +87,18 @@ function symEncrypt()
   console.log("The public key is used to wrap the symmetric key after the data is encrypted");
   var text = "It was a bright cold day in April";
   console.log("encrypting: ", text);
-  mozCipher.sym.encrypt(text,
-                        aPubKey,
-                        function (cipherObj){
+  var callback = function (cipherObj){
                           document.symEncryptResults = { pubKey: aPubKey,
                                                          cipherObj: cipherObj };
                           console.log("cipher text: ");
                           console.log(cipherObj.cipherText);
                           console.log("ok, time to decrypt");
                           symDecrypt(cipherObj);
-                        });
+  };
+  console.log(typeof callback);
+  mozCipher.sym.encrypt(text,
+                        callback,
+                        aPubKey);
   });
 }
 

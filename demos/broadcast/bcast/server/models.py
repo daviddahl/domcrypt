@@ -53,19 +53,19 @@ class Account(models.Model):
             # create identifier
             token = "%s-%s" % (self.display_name, str(datetime.now()))
             self.identifier = hashlib.sha256(token).hexdigest()
-            # create login_token
-            rndm = random.randint(0, 1000000)
-            seed = "%s-%s-%s" % (self.identifier, str(datetime.now()), str(rndm),) 
-            self.login_token = hashlib.sha256(seed).hexdigest()
 
         super(Account, self).save(*args, **kwargs) 
 
-class Follower(models.Model):
-    followee = models.ForeignKey('server.Account', related_name="followee")
-    followed = models.ForeignKey('server.Account', related_name="followed")
+class Hierarchy(models.Model):
+    leader = models.ForeignKey('server.Account', related_name="leader")
+    follower = models.ForeignKey('server.Account', related_name="follower")
     ctime = models.DateTimeField(auto_now_add=True)
+    approved = models.BooleanField(default=True)
+    atime = models.DateTimeField(auto_now_add=True)
+    blocked = models.BooleanField(default=False)
+    btime = models.DateTimeField(auto_now_add=False, null=True, blank=True)
     # TODO: need to add an approved boolean and date as well as a 
     # blocked boolean and date 
 
     def __unicode__(self):
-        return u"%s: %s" % (self.followee, self.followed,)
+        return u"%s is following %s" % (self.follower, self.leader,)

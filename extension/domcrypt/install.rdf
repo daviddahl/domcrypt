@@ -4,7 +4,7 @@
   <Description about="urn:mozilla:install-manifest">
     <em:id>domcrypt@ddahl.com</em:id>
     <em:name>DOMCrypt</em:name>
-    <em:version>0.4</em:version>
+    <em:version>0.4.1</em:version>
     <em:description>Provides window.mozCipher crypto tools to each window</em:description>
     <em:creator>David Dahl</em:creator>
     <em:homepageURL>http://domcrypt.org/</em:homepageURL>
@@ -14,8 +14,8 @@
       <!-- Firefox -->
       <Description>
         <em:id>{ec8030f7-c20a-464f-9b0e-13a3a9e97384}</em:id>
-        <em:minVersion>4.0</em:minVersion>
-        <em:maxVersion>7.0</em:maxVersion>
+        <em:minVersion>8.0</em:minVersion>
+        <em:maxVersion>10.0</em:maxVersion>
       </Description>
     </em:targetApplication>
 

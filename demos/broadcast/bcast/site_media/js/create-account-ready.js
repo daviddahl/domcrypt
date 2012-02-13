@@ -4,13 +4,8 @@ $(document).ready(function() {
     document.location = "/bcast/?t=" + Date.now();
     return;
   }
-  mozCipher.pk.getPublicKey(function (aPubKey){
-    if (!aPubKey) {
-      // need to create a keypair
-      console.log("bcast error: NO KEYPAIR FOUND.");
-      throw new Error("bcast: NO KEYPAIR FOUND");
-    }
+  mozCipher.pk.getPublicKey(function (aPubKey) {
     window._pubKey = aPubKey;
-    $("#create-account-btn").click(function (){new CreateAccount();});
+    $("#create-account-btn").click(function (){ new CreateAccount(); });
   });
 });

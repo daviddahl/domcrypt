@@ -10,9 +10,12 @@
  : create account
 {% endblock wraptitle %}
 {% block main %}
+<div id="login-link">If you already have an account and need to <a href="/bcast/login/">login</a>, please do.</div>
 <div id="create-account">
   <p><label for="chosen-name">choose a name to use:</label> </p>
   <p><input maxlength="32" id="chosen-name"/></p>
+  <p><label for="user-password">choose a server password:</label> </p>
+  <p><input type="password" maxlength="32" id="user-password"/></p>
   <p><button id="create-account-btn">create</button></p>
 </div>
 {% endblock main %}

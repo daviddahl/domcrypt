@@ -149,11 +149,9 @@ var BLANK_CONFIG_OBJECT_STR = "{default: {created: null,privKey: null,pubKey: nu
 // implicitly initialize NSS.
 Cc["@mozilla.org/psm;1"].getService(Ci.nsISupports);
 
-// We can call ChromeWorkers from this JSM via nsIWorkerFactory
+// We can call ChromeWorkers from this JSM
 XPCOMUtils.defineLazyGetter(this, "worker", function (){
-  var workerFactory = Cc["@mozilla.org/threads/workerfactory;1"].
-                        createInstance(Ci.nsIWorkerFactory);
-  return workerFactory.newChromeWorker("domcrypt_worker.js");
+  return new ChromeWorker("domcrypt_worker.js");
 });
 
 const KEYPAIR_GENERATED   = "keypairGenerated";

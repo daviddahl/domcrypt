@@ -1,4 +1,5 @@
 import hashlib
+import sys, traceback
 from pprint import pprint
 
 from django.http import Http404, HttpResponse, HttpResponseRedirect
@@ -16,7 +17,7 @@ from django.db import connection, transaction
 from django.core.serializers import serialize
 from django.db.models.query import QuerySet
 
-from bcast.server.models import Account, TimelineMessage, Follower
+from bcast.server.models import Account, TimelineMessage, Hierarchy
 from bcast.server.jsonresponse import JSONResponse
 
 class JsonResponse(HttpResponse):
@@ -59,6 +60,12 @@ def index(request):
     """
     return render_to_response("index.html", {}, context_instance=RequestContext(request))
 
+def login(request):
+    """
+    a login page
+    """
+    return render_to_response("login.html", {}, context_instance=RequestContext(request))
+
 def create_account(request):
     """
     Create account screen
@@ -79,7 +86,13 @@ def x_create_acct(request):
     try:
         # TODO: regex check for name formatting - cannot deviate 
         # from base64urlencode
+
+        # create login_token
+        seed = request.POST["password"]
+        login_token = hashlib.sha256(seed).hexdigest()
+
         acct = Account(display_name=request.GET["n"], 
+                       login_token=login_token,
                        pub_key=request.POST["pub_key"])
         acct.save()
         return JsonResponse({"status": "success", 
@@ -107,6 +120,7 @@ def x_post_msg(request):
     try:
         # insert author's timeline message
         message_bundle = simplejson.loads(request.POST["bundle"])
+        print "ORIG MSG BUNDLE"
         pprint(message_bundle)
         print message_bundle['identifier']
         author = Account.objects.get(identifier__exact=message_bundle['identifier'])
@@ -117,22 +131,28 @@ def x_post_msg(request):
                                        wrapped_key=message_bundle['cipherMsg']['wrappedKey'],
                                        iv=message_bundle['cipherMsg']['iv'])
         timeline_msg.save()
-        
+        print "timeline_msg saved..."
         # insert all follower's timeline messages parented by the author's message
-        for msg in message_bundle['messages']:
-            recipient = Account.objects.get(display_name__exact=msg['follower']['handle'])
+        # pprint(message_bundle['messages'])
+        # messages = message_bundle['messages']
+        messages = simplejson.loads(request.POST["messages"]);
+        pprint(messages)
+        for msg in messages:
+            pprint(msg)
+            recipient = Account.objects.get(display_name__exact=msg['follower'])
+            pprint(recipient)
             tmsg = TimelineMessage(recipient=recipient,
                                    author=author,
                                    content=msg['cipherText'],
                                    wrapped_key=msg['wrappedKey'],
                                    iv=msg['iv'],
                                    parent_message_id=timeline_msg.id)
+            tmsg.save()
         # return the original parent message id, etc
         return JsonResponse({"status": "success", 
                              "msg":"MESSAGE_SENT", 
                              "msgId": timeline_msg.id}
                             )
-
     except Exception, e:
         print e
         return JsonResponse({"status": "failure", "msg": e});
@@ -144,14 +164,20 @@ def x_get_msgs(request):
     try:
         id = request.GET["a1"]
         token = request.GET["a2"]
-        if request.GET.has_key("offset"):
-            limit = ":20%s" % (request.GET["offset"])
-        else:
-            limit = ":20"
+        lastid = None
+        if request.GET.has_key("lastid"):
+            try:
+                # lastid = int(request.GET["lastid"])
+                lastid = None
+            except Exception, e:
+                lastid = None
         # TODO fix the auth function
         acct = Account.objects.get(identifier__exact=id, login_token__exact=token)
         pprint(acct)
-        msgs = TimelineMessage.objects.filter(recipient=acct)
+        if lastid is None:
+            msgs = TimelineMessage.objects.filter(recipient=acct)[:100]
+        else:
+            msgs = TimelineMessage.objects.filter(recipient=acct, id__gt=lastid)[:100]
 
         return JSONResponse({"status": "success", "msg": msgs})
     except Exception, e:
@@ -206,16 +232,20 @@ def x_follow(request):
     """
     try:
         # TODO: do not allow following yourself
-        if request.GET["follow"] and request.GET["followee"]:
+        if request.GET["follower"] and request.GET["leader"]:
+            print request.GET["follower"]
+            print request.GET["leader"]
             # get both users
-            follow = Account.objects.get(identifier=request.GET["follow"])
-            followee = Account.objects.get(identifier=request.GET["followee"])
-            f = Follower.objects.filter(followee=followee, followed=follow);
+            follower = Account.objects.get(identifier=request.GET["follower"])
+            leader = Account.objects.get(identifier=request.GET["leader"])
+            print follower
+            print leader
+            f = Hierarchy.objects.filter(leader=leader, follower=follower);
             if f.count() == 1:
-                return JsonResponse({"status": "failure", "msg": "FOLLOWING", "followee": followee.display_name});
-            if follow == followee:
-                return JsonResponse({"status": "failure", "msg": "CANNOT_FOLLOW_YOURSELF", "followee": followee.display_name});
-            f = Follower(followee=followee, followed=follow)
+                return JsonResponse({"status": "failure", "msg": "FOLLOWING", "leader": leader.display_name});
+            if follower == leader:
+                return JsonResponse({"status": "failure", "msg": "CANNOT_FOLLOW_YOURSELF", "leader": leader.display_name});
+            f = Hierarchy(leader=leader, follower=follower)
             f.save()
             return JsonResponse({"status": "success", "msg": "FOLLOW_COMPLETED"})
     except Exception, e:
@@ -225,19 +255,19 @@ def x_follow(request):
 
 def x_get_following(request):
     """
-    get following
+    get the display_names of those you are following
     """
     try:
         if auth(request.GET["a1"], request.GET["a2"]):
             user = Account.objects.get(identifier=request.GET["a1"], login_token=request.GET["a2"])
             cursor = connection.cursor()
-            
-            cursor.execute("SELECT followee_id, followed_id FROM server_follower WHERE followee_id=%s", [user.id])
+            # TODO: write a join here
+            cursor.execute("SELECT follower_id, leader_id FROM server_hierarchy WHERE follower_id=%s", [user.id])
             following = cursor.fetchall()
             _following = []
             for f in following:
                 a = Account.objects.get(id=f[1])
-                _following.append(a.display_name)
+                _following.append({"handle": a.display_name, "pubKey": a.pub_key})
             return JsonResponse({"status": "success", "msg": "FOLLOWING", "following": _following})
         else:
             return JsonResponse({"status": "failure", "msg": "SERVER_ERROR", "following":[]})
@@ -253,12 +283,12 @@ def x_get_followers(request):
             user = Account.objects.get(identifier=request.GET["a1"], login_token=request.GET["a2"])
             cursor = connection.cursor()
             
-            cursor.execute("SELECT followee_id, followed_id FROM server_follower WHERE followed_id=%s", [user.id])
+            cursor.execute("SELECT follower_id, leader_id FROM server_hierarchy WHERE leader_id=%s", [user.id])
             followers = cursor.fetchall()
             _followers = []
             for f in followers:
-                a = Account.objects.get(id=f[1])
-                _followers.append(a.display_name)
+                a = Account.objects.get(id=f[0])
+                _followers.append({"handle": a.display_name, "pubKey": a.pub_key})
             return JsonResponse({"status": "success", "msg": "FOLLOWERS", "followers": _followers})
         else:
             return JsonResponse({"status": "failure", "msg": "SERVER_ERROR", "followers":[]})
@@ -280,3 +310,25 @@ def x_fetch_console(request):
     """
     fetch console messages
     """
+
+def x_login(request):
+    """
+    login to existing account
+    """
+    if request.GET.has_key("user") and request.POST.has_key("password"):
+        try:
+            seed = request.POST["password"]
+            login_token = hashlib.sha256(seed).hexdigest()
+            a = Account.objects.get(login_token=login_token, 
+                                    display_name=request.GET["user"])
+            return JsonResponse({"status": "success", 
+                                 "login_token": a.login_token,
+                                 "identifier": a.identifier,
+                                 "display_name": a.display_name})
+        except Exception, e:
+            print e
+            return JsonResponse({"status": "failure", "msg": "Server Error"})
+    else:
+        return JsonResponse({"status": "failure", "msg": "Server Error"})
+
+    

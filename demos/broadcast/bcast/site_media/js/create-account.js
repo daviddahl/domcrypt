@@ -35,7 +35,7 @@ CreateAccount.prototype = {
       success: function success(data)
       {
         if (data.available) {
-          self.submitChosenName(aName, data.token);
+          self.submitChosenName(aName);
         }
       },
       error: function error(jqXHR, testStatus, err)
@@ -50,6 +50,11 @@ CreateAccount.prototype = {
 
   submitChosenName: function CA_submitChosenName(aName)
   {
+    var password = $("#user-password")[0].value;
+    if (password.length < 6) {
+      notify("error:", "server password must be 6 characters", true);
+      return;
+    }
     console.log("submitChosenName");
     var self = this;
     var url = "/bcast/_xhr/create/acct/?n=" + aName;
@@ -58,7 +63,9 @@ CreateAccount.prototype = {
     var config = {
       url: url,
       type: "POST",
-      data: { pub_key: window._pubKey,  csrfmiddlewaretoken: csrf_token},
+      data: { pub_key: window._pubKey,
+              password: password,
+              csrfmiddlewaretoken: csrf_token},
       dataType: "json",
       success: function success(data)
       {

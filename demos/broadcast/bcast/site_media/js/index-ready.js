@@ -38,12 +38,22 @@ $(document).ready(function() {
     //   document.location = "/bcast/login/";
     //   return;
     // }
-    var credentials = JSON.parse(_credentials);
-    // decrypt credentials
-    mozCipher.pk.decrypt(credentials, function (plaintext){
-      var credentialsPlainObj = JSON.parse(plaintext);
-      // TODO: need to get follower_ids from the server
-      window.messageComposer = new MessageComposer(credentialsPlainObj, []);
+    mozCipher.pk.getPublicKey(function callback(aPublicKey) {
+      if (!aPublicKey) {
+        notify("error: no public key detected",
+               "a public key is required to use bcast",
+               true);
+        // create public key
+        return;
+      }
+      window._pubKey = aPublicKey;
+      var credentials = JSON.parse(_credentials);
+      // decrypt credentials
+      mozCipher.pk.decrypt(credentials, function (plaintext) {
+        var credentialsPlainObj = JSON.parse(plaintext);
+        // TODO: need to get follower_ids from the server
+        window.messageComposer = new MessageComposer(credentialsPlainObj, []);
+      });
     });
   }
   catch (ex) {
