@@ -2,24 +2,13 @@ DOMCrypt
 
 DOMCrypt is a Firefox extension that adds 'window.mozCipher' javascript object to any webpage.
 
-REQUIRES Firefox 4 or nightly: http://www.mozilla.com/en-US/firefox/beta/ or http://nightly.mozilla.org
+REQUIRES Firefox 9 or nightly: http://www.mozilla.com/en-US/firefox/beta/ or http://nightly.mozilla.org
 
 All of the underlying encryption is handled by NSS, so it is fast native code
 
-window.mozCipher exposes a Public Key Crypto API to content:
+See demos/ and tests/ for actual usage. 
 
-window.mozCipher.pk.generateKeyPair(); - which accepts and stores a passphrase via chrome-privileged password prompts. All of the user encryption credentials are stored on the filesystem inaccessible to content (or web page) Javascript.
-
-window.mozCipher.pk.encrypt();
-
-window.mozCipher.pk.decrypt();
-
-window.mozCipher.pk.decrypt();
-
-window.mozCipher.pk.getPublicKey();
-
-See demo.html and demo.js for actual usage. 
-
-BETTER YET, use it live: http://mozilla.ddahl.com/domcrypt/demos/demo.html
-
-DOMCrypt is an effort to prototype what an easy to use DOM API for public key encryption looks like. This should be as much a part of 'HTML 5' as <audio> or <video>, etc.
+* latest spec: https://wiki.mozilla.org/Privacy/Features/DOMCryptAPISpec/Latest
+* bugzilla: https://bugzilla.mozilla.org/show_bug.cgi?id=649154
+* webkit: https://bugs.webkit.org/show_bug.cgi?id=62010
+* W3C Web Crypto WG: www.w3.org/2011/11/webcryptography-charter.html
