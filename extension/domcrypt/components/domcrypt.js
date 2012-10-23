@@ -50,7 +50,6 @@ function log(aMessage) {
 
 XPCOMUtils.defineLazyGetter(this, "crypto", function (){
   Cu.import("resource://domcrypt/DOMCryptMethods.jsm");
-
   return DOMCryptMethods;
 });
 
@@ -75,11 +74,6 @@ XPCOMUtils.defineLazyGetter(this, "Addressbook", function (){
  * that runs all WeaveCrypto (NSS) functions off main thread via ctypes
  */
 
-// const nsIClassInfo = Ci.nsIClassInfo;
-// const DOMCRYPT_CONTRACTID = "@droplettr.com/domcrypt;1";
-// const DOMCRYPT_CID = Components.ID("{66af630d-6d6d-4d29-9562-9f1de90c1798}");
-// const IDOMCrypt = Components.interfaces.IDOMCrypt;
-
 function DOMCryptAPI() {}
 
 DOMCryptAPI.prototype = {
@@ -89,12 +83,6 @@ DOMCryptAPI.prototype = {
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIDOMGlobalPropertyInitializer,
                                          Ci.nsIObserver,]),
 
-  // classInfo : XPCOMUtils.generateCI({ classID: DOMCRYPT_CID,
-  //                                     contractID: DOMCRYPT_CONTRACTID,
-  //                                     classDescription: "DOMCrypt",
-  //                                     flags: nsIClassInfo.DOM_OBJECT,
-  //                                     interfaces: [IDOMCrypt]
-  //                                   }),
   sandbox: null,
 
   /**

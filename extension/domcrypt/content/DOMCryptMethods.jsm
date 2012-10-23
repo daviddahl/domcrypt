@@ -826,7 +826,9 @@ var DOMCryptMethods = {
  *
  * @returns Object
  */
-function GenerateCallbackObject() { }
+function GenerateCallbackObject() {
+  log("GenerateCallbackObject() constructor");
+}
 
 GenerateCallbackObject.prototype = {
 
@@ -981,6 +983,16 @@ GenerateCallbackObject.prototype = {
    */
   handleEncrypt: function GCO_handleEncrypt(aCipherMessage)
   {
+    log("handleEncrypt...");
+    log(aCipherMessage);
+    log(this.encrypt.sandbox);
+    aCipherMessage.__exposedProps__ = {
+      iv: "r",
+      content: "r",
+      pubKey: "r",
+      wrappedKey: "r",
+    };
+
     let callback = this.makeEncryptCallback(aCipherMessage);
     let sandbox = this.encrypt.sandbox;
     sandbox.importFunction(callback, "encryptCallback");
