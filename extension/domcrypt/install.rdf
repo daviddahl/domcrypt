@@ -4,7 +4,7 @@
   <Description about="urn:mozilla:install-manifest">
     <em:id>domcrypt@ddahl.com</em:id>
     <em:name>DOMCrypt</em:name>
-    <em:version>0.4.2</em:version>
+    <em:version>0.4.3</em:version>
     <em:description>Provides window.mozCipher crypto tools to each window</em:description>
     <em:creator>David Dahl</em:creator>
     <em:homepageURL>http://domcrypt.org/</em:homepageURL>
