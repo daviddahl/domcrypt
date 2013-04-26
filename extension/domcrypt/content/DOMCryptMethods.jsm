@@ -1227,6 +1227,12 @@ GenerateCallbackObject.prototype = {
    */
   handleWrapSymKey: function GCO_handleWrapSymKey(aCipherObject)
   {
+    aCipherObject.__exposedProps__ = {
+      iv: "r",
+      cipherText: "r",
+      pubKey: "r",
+      wrappedKey: "r",
+    };
     let callback = this.makeWrapSymKeyCallback(aCipherObject);
     let sandbox = this.wrapSymKey.sandbox;
     sandbox.importFunction(callback, "wrapSymKeyCallback");
