@@ -1152,6 +1152,12 @@ GenerateCallbackObject.prototype = {
    */
   handleSymEncrypt: function GCO_handleSymEncryptCallback(aCipherObject)
   {
+    aCipherObject.__exposedProps__ = {
+      iv: "r",
+      cipherText: "r",
+      pubKey: "r",
+      wrappedKey: "r",
+    };
     let callback = this.makeSymEncryptCallback(aCipherObject);
     let sandbox = this.symEncrypt.sandbox;
     sandbox.importFunction(callback, "symEncryptCallback");
