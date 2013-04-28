@@ -81,7 +81,14 @@ onmessage = function domcryptWorkerOnMessage(aEvent)
 
   switch(aEvent.data.action) {
   case INITIALIZE:
-    WeaveCrypto.initNSS(aEvent.data.nssPath);
+    // try to open the library through its name only
+    try {
+      WeaveCrypto.initNSS(aEvent.data.libName);
+    }
+    // if this fails we need to provide the full path
+    catch (ex) {
+      WeaveCrypto.initNSS(aEvent.data.fullPath);
+    }
     break;
   case GENERATE_KEYPAIR:
     result = WeaveCryptoWrapper.generateKeypair(aEvent.data.passphrase);
