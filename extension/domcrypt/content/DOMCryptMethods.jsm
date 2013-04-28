@@ -278,13 +278,17 @@ var DOMCryptMethods = {
    *
    * @param Object aConfigObject
    * @param String aSharedObjectPath
-   *        The path to the NSS shared object
+   *        The full path to the NSS shared object
+   * @param String aSharedObjectName
+   *        The name of the NSS shared object
    * @returns void
    */
-  init: function DCM_init(aConfigObject, aSharedObjectPath)
+  init: function DCM_init(aConfigObject, aSharedObjectPath, aSharedObjectName)
   {
     this.config = aConfigObject;
-    worker.postMessage({action: INITIALIZE_WORKER, nssPath: aSharedObjectPath});
+    worker.postMessage({ action: INITIALIZE_WORKER,
+                         fullPath: aSharedObjectPath,
+                         libName: aSharedObjectName });
   },
 
   /**
@@ -1337,13 +1341,13 @@ function initializeDOMCrypt()
           throw new Error("Cannot write config object file to disk");
         }
         let configObj = JSON.parse(data);
-        DOMCryptMethods.init(configObj, fullPath);
+        DOMCryptMethods.init(configObj, fullPath, libName);
       });
     }
     else {
       data = NetUtil.readInputStreamToString(inputStream, inputStream.available());
       let configObj = JSON.parse(data);
-      DOMCryptMethods.init(configObj, fullPath);
+      DOMCryptMethods.init(configObj, fullPath, libName);
     }
   });
 }
